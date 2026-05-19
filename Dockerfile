@@ -8,6 +8,7 @@ RUN npm run build
 
 # Stage 2: build backend
 FROM node:20-alpine AS backend-builder
+RUN apk add --no-cache openssl
 WORKDIR /app/backend
 COPY backend/package*.json ./
 RUN npm install
