@@ -15,12 +15,14 @@ model User {
   height    Float
   createdAt DateTime @default(now())
 
-  weightLogs   WeightLog[]
-  waterLogs    WaterLog[]
-  activityLogs ActivityLog[]
-  readingLogs  ReadingLog[]
-  englishLogs  EnglishLog[]
-  settings     UserSettings?
+  weightLogs     WeightLog[]
+  waterLogs      WaterLog[]
+  activityLogs   ActivityLog[]
+  readingLogs    ReadingLog[]
+  englishLogs    EnglishLog[]
+  settings       UserSettings?
+  customTasks    CustomTask[]
+  customTaskLogs CustomTaskLog[]
 }
 
 model UserSettings {
@@ -32,6 +34,7 @@ model UserSettings {
   weightCheckIntervalDays    Int    @default(7)
   activityGoalMinutes        Int    @default(30)
   readingGoalMinutes         Int    @default(20)
+  englishGoalMinutes         Int    @default(15)
 }
 
 model WeightLog {
@@ -74,4 +77,28 @@ model EnglishLog {
   studied         Boolean  @default(true)
   durationMinutes Int?
   loggedAt        DateTime @default(now())
+}
+
+model CustomTask {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  pointValue  Int      @default(10)
+  color       String   @default("#7c5cfc")
+  icon        String   @default("star")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  logs CustomTaskLog[]
+}
+
+model CustomTaskLog {
+  id       String     @id @default(cuid())
+  taskId   String
+  task     CustomTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loggedAt DateTime   @default(now())
 }

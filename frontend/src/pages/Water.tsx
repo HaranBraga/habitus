@@ -6,7 +6,6 @@ import { Droplets, Plus, Trash2, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 
 type Props = { userId: string }
-
 const PRESETS = [150, 200, 300, 500]
 
 export function WaterPage({ userId }: Props) {
@@ -21,95 +20,82 @@ export function WaterPage({ userId }: Props) {
     mutationFn: (ml: number) => logWater(userId, ml),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['dashboard', userId] }),
   })
-
   const deleteMutation = useMutation({
     mutationFn: deleteWaterLog,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['dashboard', userId] }),
   })
 
-  if (isLoading || !data) return <div className="flex justify-center pt-20"><Loader2 className="animate-spin text-water" size={28} /></div>
+  if (isLoading || !data) return (
+    <div className="flex justify-center pt-20"><Loader2 className="animate-spin text-blue-500" size={28} /></div>
+  )
 
   const { total, goal, logs } = data.today.water
   const pct = Math.min(100, Math.round((total / goal) * 100))
-
-  const handleCustom = () => {
-    const ml = parseInt(custom)
-    if (ml >= 50 && ml <= 2000) {
-      logMutation.mutate(ml)
-      setCustom('')
-    }
-  }
+  const pts = Math.min(30, Math.round((total / goal) * 30))
 
   return (
-    <div className="px-4 pt-12 pb-6 space-y-6">
-      <PageHeader title="Água" subtitle="Hidratação diária" icon="💧" />
+    <div className="px-4 pt-12 pb-4 space-y-5">
+      <PageHeader title="Água" subtitle="Hidratação diária" Icon={Droplets} iconColor="text-blue-400" />
 
-      {/* Big progress */}
-      <div className="bg-blue-50 rounded-3xl p-6 text-center">
-        <p className="text-5xl font-bold text-blue-600">{total}<span className="text-2xl font-normal ml-1">ml</span></p>
-        <p className="text-blue-400 mt-1 text-sm">meta: {goal}ml</p>
-        <ProgressBar value={total} max={goal} color="bg-blue-500" className="mt-4" />
-        <p className="text-blue-500 font-semibold mt-2">{pct}%</p>
+      <div className="rounded-3xl p-6 text-center space-y-3"
+        style={{ background: '#1c1c28', border: '1px solid rgba(59,130,246,0.2)' }}>
+        <div className="text-5xl font-black text-white">
+          {total}<span className="text-xl font-normal text-gray-500 ml-1">ml</span>
+        </div>
+        <p className="text-xs text-gray-600">meta: {goal}ml</p>
+        <ProgressBar value={total} max={goal} color="bg-blue-500" height="h-2" />
+        <div className="flex justify-between text-xs px-1">
+          <span className="text-blue-400 font-semibold">{pct}%</span>
+          <span className="text-gray-600">+{pts} pts</span>
+        </div>
       </div>
 
-      {/* Quick add */}
       <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Adicionar rápido</p>
+        <p className="text-xs text-gray-600 uppercase tracking-wider mb-3 font-medium">Registro rápido</p>
         <div className="grid grid-cols-4 gap-2">
-          {PRESETS.map((ml) => (
-            <button
-              key={ml}
-              onClick={() => logMutation.mutate(ml)}
+          {PRESETS.map(ml => (
+            <button key={ml} onClick={() => logMutation.mutate(ml)}
               disabled={logMutation.isPending}
-              className="bg-white border border-blue-100 text-blue-600 font-semibold py-3 rounded-xl hover:bg-blue-50 active:scale-95 transition-all text-sm shadow-sm disabled:opacity-60"
-            >
+              className="py-3.5 rounded-xl text-sm font-bold transition-all active:scale-95 disabled:opacity-50"
+              style={{ background: '#1c2034', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.2)' }}>
               +{ml}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Custom */}
       <div className="flex gap-2">
-        <input
-          type="number"
-          placeholder="Personalizado (ml)"
-          value={custom}
-          onChange={(e) => setCustom(e.target.value)}
-          min={50}
-          max={2000}
-          className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400"
-        />
-        <button
-          onClick={handleCustom}
-          disabled={logMutation.isPending}
-          className="bg-blue-500 text-white px-4 py-2.5 rounded-xl hover:bg-blue-600 active:scale-95 transition-all disabled:opacity-60"
-        >
-          <Plus size={20} />
+        <input type="number" placeholder="Personalizado (ml)" value={custom}
+          onChange={e => setCustom(e.target.value)} min={50} max={2000}
+          className="flex-1 px-3 py-2.5 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          style={{ background: '#1c2034', border: '1px solid rgba(59,130,246,0.2)' }} />
+        <button onClick={() => { const ml = parseInt(custom); if (ml >= 50) { logMutation.mutate(ml); setCustom('') } }}
+          disabled={logMutation.isPending || !custom}
+          className="px-4 rounded-xl flex items-center justify-center disabled:opacity-50 transition-all active:scale-95"
+          style={{ background: '#3b82f6' }}>
+          <Plus size={20} className="text-white" />
         </button>
       </div>
 
-      {/* Logs today */}
       {logs.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Hoje</p>
+          <p className="text-xs text-gray-600 uppercase tracking-wider mb-3 font-medium">Hoje</p>
           <div className="space-y-2">
-            {[...logs].reverse().map((log) => (
-              <div key={log.id} className="bg-white rounded-xl border border-gray-100 px-4 py-3 flex items-center justify-between">
+            {[...logs].reverse().map(log => (
+              <div key={log.id} className="flex items-center justify-between px-4 py-3 rounded-xl"
+                style={{ background: '#1c1c28', border: '1px solid #2a2a3a' }}>
                 <div className="flex items-center gap-3">
-                  <Droplets className="text-blue-400" size={18} />
+                  <Droplets size={16} className="text-blue-500" strokeWidth={2} />
                   <div>
-                    <p className="font-semibold text-gray-900">{log.amountMl} ml</p>
-                    <p className="text-xs text-gray-400">
+                    <p className="font-semibold text-white text-sm">{log.amountMl} ml</p>
+                    <p className="text-xs text-gray-600">
                       {new Date(log.loggedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => deleteMutation.mutate(log.id)}
-                  className="text-gray-300 hover:text-red-400 transition-colors p-1"
-                >
-                  <Trash2 size={16} />
+                <button onClick={() => deleteMutation.mutate(log.id)}
+                  className="text-gray-700 hover:text-red-400 transition-colors p-1">
+                  <Trash2 size={14} />
                 </button>
               </div>
             ))}

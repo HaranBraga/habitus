@@ -5,17 +5,18 @@ import { SelectUser } from './pages/SelectUser'
 import { Dashboard } from './pages/Dashboard'
 import { WaterPage } from './pages/Water'
 import { ActivityPage } from './pages/Activity'
-import { ReadingPage } from './pages/Reading'
-import { EnglishPage } from './pages/English'
+import { StudiesPage } from './pages/Studies'
+import { RankingPage } from './pages/Ranking'
+import { MorePage } from './pages/More'
 import { WeightPage } from './pages/Weight'
+import { TasksPage } from './pages/Tasks'
 import { SettingsPage } from './pages/Settings'
+import { AnalysisPage } from './pages/Analysis'
 
 export default function App() {
   const { userId, selectUser, logout } = useUser()
 
-  if (!userId) {
-    return <SelectUser onSelect={selectUser} />
-  }
+  if (!userId) return <SelectUser onSelect={selectUser} />
 
   return (
     <BrowserRouter>
@@ -24,10 +25,13 @@ export default function App() {
           <Route path="/" element={<Dashboard userId={userId} />} />
           <Route path="/water" element={<WaterPage userId={userId} />} />
           <Route path="/activity" element={<ActivityPage userId={userId} />} />
-          <Route path="/reading" element={<ReadingPage userId={userId} />} />
-          <Route path="/english" element={<EnglishPage userId={userId} />} />
+          <Route path="/studies" element={<StudiesPage userId={userId} />} />
+          <Route path="/ranking" element={<RankingPage userId={userId} />} />
+          <Route path="/more" element={<MorePage userId={userId} onLogout={logout} />} />
           <Route path="/weight" element={<WeightPage userId={userId} />} />
+          <Route path="/tasks" element={<TasksPage userId={userId} />} />
           <Route path="/settings" element={<SettingsPage userId={userId} />} />
+          <Route path="/analysis" element={<AnalysisPage userId={userId} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

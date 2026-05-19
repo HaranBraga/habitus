@@ -9,6 +9,9 @@ import { readingRoutes } from './routes/reading'
 import { englishRoutes } from './routes/english'
 import { dashboardRoutes } from './routes/dashboard'
 import { settingsRoutes } from './routes/settings'
+import { tasksRoutes } from './routes/tasks'
+import { rankingRoutes } from './routes/ranking'
+import { analysisRoutes } from './routes/analysis'
 import { startScheduler } from './services/scheduler'
 
 export const prisma = new PrismaClient()
@@ -29,6 +32,9 @@ async function main() {
   app.register(englishRoutes, { prefix: '/api/english' })
   app.register(dashboardRoutes, { prefix: '/api/dashboard' })
   app.register(settingsRoutes, { prefix: '/api/settings' })
+  app.register(tasksRoutes, { prefix: '/api/tasks' })
+  app.register(rankingRoutes, { prefix: '/api/ranking' })
+  app.register(analysisRoutes, { prefix: '/api/analysis' })
 
   app.get('/health', async () => ({ status: 'ok' }))
 
