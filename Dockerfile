@@ -31,7 +31,7 @@ COPY backend/package.json ./package.json
 
 # Frontend
 COPY --from=frontend-builder /app/frontend/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/nginx.conf
 
 # Supervisor
 COPY supervisord.conf /etc/supervisord.conf
