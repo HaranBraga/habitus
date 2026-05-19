@@ -3,13 +3,11 @@ import { getDashboard, updateSettings, type UserSettings } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
 import { Save, Loader2, LogOut } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 
 type Props = { userId: string }
 
 export function SettingsPage({ userId }: Props) {
   const qc = useQueryClient()
-  const navigate = useNavigate()
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', userId],
     queryFn: () => getDashboard(userId),

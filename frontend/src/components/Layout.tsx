@@ -12,7 +12,7 @@ const navItems = [
   { to: '/weight', icon: Scale, label: 'Peso' },
 ]
 
-export function Layout({ onLogout }: Props) {
+export function Layout(_: Props) {
   return (
     <div className="flex flex-col min-h-dvh bg-gray-50">
       <main className="flex-1 overflow-y-auto pb-20">
