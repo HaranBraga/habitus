@@ -18,7 +18,7 @@ RUN npm run build
 
 # Final stage: nginx + node via supervisord
 FROM node:20-alpine
-RUN apk add --no-cache nginx supervisor
+RUN apk add --no-cache nginx supervisor openssl
 
 WORKDIR /app
 
