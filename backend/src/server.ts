@@ -9,7 +9,7 @@ import { readingRoutes } from './routes/reading'
 import { englishRoutes } from './routes/english'
 import { dashboardRoutes } from './routes/dashboard'
 import { settingsRoutes } from './routes/settings'
-import { tasksRoutes } from './routes/tasks'
+import { groupTasksRoutes } from './routes/grouptasks'
 import { rankingRoutes } from './routes/ranking'
 import { analysisRoutes } from './routes/analysis'
 import { startScheduler } from './services/scheduler'
@@ -32,7 +32,7 @@ async function main() {
   app.register(englishRoutes, { prefix: '/api/english' })
   app.register(dashboardRoutes, { prefix: '/api/dashboard' })
   app.register(settingsRoutes, { prefix: '/api/settings' })
-  app.register(tasksRoutes, { prefix: '/api/tasks' })
+  app.register(groupTasksRoutes, { prefix: '/api/grouptasks' })
   app.register(rankingRoutes, { prefix: '/api/ranking' })
   app.register(analysisRoutes, { prefix: '/api/analysis' })
 
@@ -45,7 +45,4 @@ async function main() {
   console.log(`Habitus backend rodando na porta ${port}`)
 }
 
-main().catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+main().catch(err => { console.error(err); process.exit(1) })

@@ -3,8 +3,10 @@ import axios from 'axios'
 export const api = axios.create({ baseURL: '/api' })
 
 export type User = {
-  id: string; name: string; phone: string; height: number; createdAt: string
+  id: string; name: string; phone: string; height: number
+  isAdmin: boolean; createdAt: string
   settings: UserSettings | null
+  weightGoal?: { min: number; ideal: number; max: number }
 }
 export type UserSettings = {
   waterGoalMl: number; waterReminderIntervalHours: number
@@ -24,20 +26,21 @@ export type DashboardData = {
   gamification: { streak: number; points: number }
 }
 export type RankingUser = {
-  userId: string; name: string; todayPoints: number; streak: number
+  userId: string; name: string; isAdmin: boolean
+  todayPoints: number; monthlyPoints: number; streak: number
   level: number; levelName: string; totalPoints: number
   today: {
     water: { total: number; goal: number }
     activity: { total: number; goal: number }
     reading: { total: number; goal: number }
-    english: { studied: boolean; minutes: number }
-    customTasksCompleted: number; customTasksTotal: number
+    english: { studied: boolean }
+    groupTasksCompleted: number; groupTasksTotal: number
   }
-  weekWaterAvg: number; latestWeight: number | null
+  latestWeight: number | null
 }
-export type CustomTask = {
-  id: string; userId: string; title: string; description?: string
-  pointValue: number; color: string; icon: string; active: boolean
+export type GroupTask = {
+  id: string; title: string; description?: string
+  pointValue: number; color: string; active: boolean
   completedToday?: boolean
 }
 
@@ -45,6 +48,7 @@ export type CustomTask = {
 export const getUsers = () => api.get<User[]>('/users').then(r => r.data)
 export const createUser = (d: { name: string; phone: string; height: number }) =>
   api.post<User>('/users', d).then(r => r.data)
+export const getUser = (id: string) => api.get<User>(`/users/${id}`).then(r => r.data)
 
 // Dashboard
 export const getDashboard = (userId: string) =>
@@ -57,9 +61,11 @@ export const deleteWaterLog = (logId: string) => api.delete(`/water/${logId}`)
 
 // Weight
 export const logWeight = (userId: string, weight: number) =>
-  api.post(`/weight/${userId}`, { weight }).then(r => r.data)
+  api.post<{ newWaterGoal: number }>(`/weight/${userId}`, { weight }).then(r => r.data)
 export const getWeightHistory = (userId: string) =>
   api.get<{ id: string; weight: number; loggedAt: string }[]>(`/weight/${userId}/history`).then(r => r.data)
+export const getWeightGoal = (userId: string) =>
+  api.get<{ min: number; ideal: number; max: number }>(`/weight/${userId}/goal`).then(r => r.data)
 
 // Activity
 export const logActivity = (userId: string, d: { durationMinutes: number; description?: string }) =>
@@ -77,20 +83,19 @@ export const logEnglish = (userId: string, d: { studied: boolean; durationMinute
 export const updateSettings = (userId: string, d: Partial<UserSettings>) =>
   api.put(`/settings/${userId}`, d).then(r => r.data)
 
-// Tasks
-export const getTasks = (userId: string) =>
-  api.get<CustomTask[]>(`/tasks/${userId}/today`).then(r => r.data)
-export const createTask = (userId: string, d: Partial<CustomTask>) =>
-  api.post<CustomTask>(`/tasks/${userId}`, d).then(r => r.data)
-export const completeTask = (taskId: string) =>
-  api.post(`/tasks/${taskId}/log`).then(r => r.data)
-export const deleteTask = (taskId: string) =>
-  api.delete(`/tasks/${taskId}`)
-export const updateTask = (taskId: string, d: Partial<CustomTask>) =>
-  api.put(`/tasks/${taskId}`, d).then(r => r.data)
+// Group Tasks
+export const getGroupTasks = (userId: string) =>
+  api.get<GroupTask[]>(`/grouptasks/today/${userId}`).then(r => r.data)
+export const createGroupTask = (adminId: string, d: Partial<GroupTask>) =>
+  api.post<GroupTask>('/grouptasks', { adminId, ...d }).then(r => r.data)
+export const completeGroupTask = (taskId: string, userId: string) =>
+  api.post(`/grouptasks/${taskId}/complete`, { userId }).then(r => r.data)
+export const deleteGroupTask = (taskId: string, adminId: string) =>
+  api.delete(`/grouptasks/${taskId}?adminId=${adminId}`)
 
 // Ranking
-export const getRanking = () => api.get<RankingUser[]>('/ranking').then(r => r.data)
+export const getRankingDaily = () => api.get<RankingUser[]>('/ranking/daily').then(r => r.data)
+export const getRankingMonthly = () => api.get<RankingUser[]>('/ranking/monthly').then(r => r.data)
 
 // Analysis
 export const getAnalysis = (userId: string) =>

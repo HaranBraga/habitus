@@ -13,6 +13,7 @@ model User {
   name      String
   phone     String   @unique
   height    Float
+  isAdmin   Boolean  @default(false)
   createdAt DateTime @default(now())
 
   weightLogs     WeightLog[]
@@ -21,8 +22,7 @@ model User {
   readingLogs    ReadingLog[]
   englishLogs    EnglishLog[]
   settings       UserSettings?
-  customTasks    CustomTask[]
-  customTaskLogs CustomTaskLog[]
+  groupTaskLogs  GroupTaskLog[]
 }
 
 model UserSettings {
@@ -79,26 +79,24 @@ model EnglishLog {
   loggedAt        DateTime @default(now())
 }
 
-model CustomTask {
+// Tarefas criadas pelo admin do grupo, compartilhadas entre todos
+model GroupTask {
   id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title       String
   description String?
   pointValue  Int      @default(10)
   color       String   @default("#7c5cfc")
-  icon        String   @default("star")
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
 
-  logs CustomTaskLog[]
+  logs GroupTaskLog[]
 }
 
-model CustomTaskLog {
-  id       String     @id @default(cuid())
+model GroupTaskLog {
+  id       String    @id @default(cuid())
   taskId   String
-  task     CustomTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task     GroupTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
   userId   String
-  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  loggedAt DateTime   @default(now())
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loggedAt DateTime  @default(now())
 }
