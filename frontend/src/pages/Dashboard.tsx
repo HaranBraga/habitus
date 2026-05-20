@@ -29,7 +29,7 @@ function WeightModal({ userId, onClose }: { userId: string; onClose: () => void 
     },
   })
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-4"
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.75)' }}>
       <div className="w-full max-w-sm rounded-3xl p-6 space-y-4"
         style={{ background: '#1c1c28', border: '1px solid rgba(236,72,153,0.3)' }}>
