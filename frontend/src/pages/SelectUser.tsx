@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getUsers, createUser, type User } from '../lib/api'
 import { UserRound, Plus, Loader2, Leaf } from 'lucide-react'
+import axios from 'axios'
 
 type Props = { onSelect: (id: string) => void }
 
@@ -15,7 +16,23 @@ export function SelectUser({ onSelect }: Props) {
   const mutation = useMutation({
     mutationFn: createUser,
     onSuccess: (user) => { qc.invalidateQueries({ queryKey: ['users'] }); onSelect(user.id) },
-    onError: () => setError('Erro ao cadastrar. Verifique os dados.'),
+    onError: (err) => {
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status
+        if (status === 409) {
+          setError('Este telefone já está cadastrado. Selecione seu nome acima.')
+          setShowForm(false)
+        } else if (status === 400) {
+          setError('Dados inválidos. Verifique nome, telefone e altura.')
+        } else if (!err.response) {
+          setError('Servidor indisponível. Tente novamente em instantes.')
+        } else {
+          setError('Erro ao cadastrar. Tente novamente.')
+        }
+      } else {
+        setError('Erro ao cadastrar. Tente novamente.')
+      }
+    },
   })
 
   const handleSubmit = (e: React.FormEvent) => {
