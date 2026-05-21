@@ -66,7 +66,6 @@ export function WeightEvolutionPage({ userId }: Props) {
 
   const goal = status?.goal
   const latest = status?.latest
-  const bmi = latest && goal ? (latest / Math.pow((goal.ideal / 22) * 100 / 100, 2)).toFixed(1) : null
   const distToIdeal = latest && goal ? (latest - goal.ideal).toFixed(1) : null
 
   return (
