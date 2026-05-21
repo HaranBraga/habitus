@@ -9,9 +9,13 @@ let initialized = false
 
 export function initWebPush() {
   if (PUBLIC_KEY && PRIVATE_KEY) {
-    webpush.setVapidDetails(CONTACT, PUBLIC_KEY, PRIVATE_KEY)
-    initialized = true
-    console.log('Web Push inicializado')
+    try {
+      webpush.setVapidDetails(CONTACT, PUBLIC_KEY, PRIVATE_KEY)
+      initialized = true
+      console.log('Web Push inicializado')
+    } catch (err) {
+      console.error('VAPID keys inválidas — push notifications desativadas. Gere novas com: npx web-push generate-vapid-keys', err)
+    }
   } else {
     console.log('VAPID keys não configuradas — push notifications desativadas')
   }
