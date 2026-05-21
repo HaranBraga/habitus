@@ -7,24 +7,23 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icons/*.png'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.svg', 'icon.svg'],
       manifest: {
         name: 'Habitus',
         short_name: 'Habitus',
         description: 'Gamificação para uma vida mais saudável e produtiva',
-        theme_color: '#6366f1',
-        background_color: '#ffffff',
+        theme_color: '#7c5cfc',
+        background_color: '#0d0d14',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml' },
+          { src: '/apple-touch-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,woff2}'],
         runtimeCaching: [
           {
             urlPattern: /^https?:\/\/.*\/api\/.*/i,

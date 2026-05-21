@@ -53,8 +53,9 @@ async function checkWeightReminders() {
   const users = await prisma.user.findMany({ include: { settings: true } })
   for (const user of users) {
     const intervalDays = user.settings?.weightCheckIntervalDays ?? 7
+    // Only check official weight logs
     const latest = await prisma.weightLog.findFirst({
-      where: { userId: user.id }, orderBy: { loggedAt: 'desc' },
+      where: { userId: user.id, isOfficial: true }, orderBy: { loggedAt: 'desc' },
     })
     const daysAgo = latest
       ? Math.floor((Date.now() - latest.loggedAt.getTime()) / 86400000)

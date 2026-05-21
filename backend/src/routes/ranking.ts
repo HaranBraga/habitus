@@ -1,13 +1,14 @@
 import { FastifyInstance } from 'fastify'
 import { prisma } from '../server'
 import { startOfDay, endOfDay } from '../utils/date'
+import { calcWeightPoints, calcWeightGoal } from './weight'
 
 function calcPoints(data: {
   waterTotal: number; waterGoal: number
   activityTotal: number; activityGoal: number
   readingTotal: number; readingGoal: number
   englishMinutes: number
-  weightLogged: boolean
+  officialWeightPoints: number
   groupTaskPoints: number
 }): number {
   let pts = 0
@@ -15,7 +16,7 @@ function calcPoints(data: {
   pts += Math.min(25, Math.round((data.activityTotal / Math.max(data.activityGoal, 1)) * 25))
   pts += Math.min(15, Math.round((data.readingTotal / Math.max(data.readingGoal, 1)) * 15))
   if (data.englishMinutes > 0) pts += 20 + Math.min(10, Math.floor(data.englishMinutes / 5))
-  if (data.weightLogged) pts += 10
+  pts += data.officialWeightPoints
   pts += data.groupTaskPoints
   return pts
 }
@@ -45,7 +46,8 @@ async function getDayStats(userId: string, date: Date, settings: { waterGoalMl: 
     prisma.activityLog.findMany({ where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } } }),
     prisma.readingLog.findMany({ where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } } }),
     prisma.englishLog.findFirst({ where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } } }),
-    prisma.weightLog.findFirst({ where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } } }),
+    // Only official weight counts for points
+    prisma.weightLog.findFirst({ where: { userId, isOfficial: true, loggedAt: { gte: dayStart, lte: dayEnd } } }),
     prisma.groupTaskLog.findMany({ where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } } }),
     prisma.groupTask.findMany({ where: { active: true } }),
   ])
@@ -59,12 +61,26 @@ async function getDayStats(userId: string, date: Date, settings: { waterGoalMl: 
     .filter(t => completedTaskIds.has(t.id))
     .reduce((s, t) => s + t.pointValue, 0)
 
+  let officialWeightPoints = 0
+  if (weightLog) {
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (user) {
+      const goal = calcWeightGoal(user.height)
+      const prevOfficial = await prisma.weightLog.findFirst({
+        where: { userId, isOfficial: true, loggedAt: { lt: dayStart } },
+        orderBy: { loggedAt: 'desc' },
+      })
+      const { points } = calcWeightPoints(weightLog.weight, prevOfficial?.weight ?? null, goal.ideal)
+      officialWeightPoints = points
+    }
+  }
+
   return calcPoints({
     waterTotal, waterGoal: settings.waterGoalMl,
     activityTotal: actTotal, activityGoal: settings.activityGoalMinutes,
     readingTotal: readTotal, readingGoal: settings.readingGoalMinutes,
     englishMinutes: engMin,
-    weightLogged: !!weightLog,
+    officialWeightPoints,
     groupTaskPoints,
   })
 }

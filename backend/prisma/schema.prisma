@@ -13,6 +13,7 @@ model User {
   name      String
   phone     String   @unique
   height    Float
+  age       Int      @default(25)
   isAdmin   Boolean  @default(false)
   createdAt DateTime @default(now())
 
@@ -38,11 +39,12 @@ model UserSettings {
 }
 
 model WeightLog {
-  id       String   @id @default(cuid())
-  userId   String
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  weight   Float
-  loggedAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weight     Float
+  isOfficial Boolean  @default(false)
+  loggedAt   DateTime @default(now())
 }
 
 model WaterLog {
@@ -79,7 +81,6 @@ model EnglishLog {
   loggedAt        DateTime @default(now())
 }
 
-// Tarefas criadas pelo admin do grupo, compartilhadas entre todos
 model GroupTask {
   id          String   @id @default(cuid())
   title       String

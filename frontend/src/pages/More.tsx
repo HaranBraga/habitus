@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Scale, CheckSquare, Settings, BrainCircuit, LogOut, ChevronRight } from 'lucide-react'
+import { Scale, TrendingUp, CheckSquare, Settings, BrainCircuit, LogOut, ChevronRight } from 'lucide-react'
 
 type Props = { userId: string; onLogout: () => void }
 
@@ -7,17 +7,16 @@ export function MorePage({ onLogout }: Props) {
   const navigate = useNavigate()
 
   const items = [
-    { icon: Scale, label: 'Peso', sub: 'Registrar e acompanhar', to: '/weight', color: '#ec4899' },
-    { icon: CheckSquare, label: 'Tarefas', sub: 'Hábitos personalizados', to: '/tasks', color: '#7c5cfc' },
+    { icon: TrendingUp, label: 'Evolução do Peso', sub: 'Histórico oficial e pontuação', to: '/weight-evolution', color: '#ec4899' },
+    { icon: Scale, label: 'Registrar Peso', sub: 'Registro rápido', to: '/weight', color: '#f472b6' },
+    { icon: CheckSquare, label: 'Tarefas do Grupo', sub: 'Hábitos em comum', to: '/tasks', color: '#7c5cfc' },
     { icon: BrainCircuit, label: 'Análise IA', sub: 'Insights com DeepSeek', to: '/analysis', color: '#3b82f6' },
     { icon: Settings, label: 'Configurações', sub: 'Metas e lembretes', to: '/settings', color: '#6b7280' },
   ]
 
   return (
     <div className="px-4 pt-12 pb-4 space-y-4">
-      <div className="mb-2">
-        <h1 className="text-xl font-bold text-white">Mais</h1>
-      </div>
+      <h1 className="text-xl font-bold text-white">Mais</h1>
 
       <div className="space-y-2">
         {items.map(({ icon: Icon, label, sub, to, color }) => (

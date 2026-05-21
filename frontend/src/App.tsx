@@ -9,6 +9,7 @@ import { StudiesPage } from './pages/Studies'
 import { RankingPage } from './pages/Ranking'
 import { MorePage } from './pages/More'
 import { WeightPage } from './pages/Weight'
+import { WeightEvolutionPage } from './pages/WeightEvolution'
 import { TasksPage } from './pages/Tasks'
 import { SettingsPage } from './pages/Settings'
 import { AnalysisPage } from './pages/Analysis'
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/ranking" element={<RankingPage userId={userId} />} />
           <Route path="/more" element={<MorePage userId={userId} onLogout={logout} />} />
           <Route path="/weight" element={<WeightPage userId={userId} />} />
+          <Route path="/weight-evolution" element={<WeightEvolutionPage userId={userId} />} />
           <Route path="/tasks" element={<TasksPage userId={userId} />} />
           <Route path="/settings" element={<SettingsPage userId={userId} />} />
           <Route path="/analysis" element={<AnalysisPage userId={userId} />} />

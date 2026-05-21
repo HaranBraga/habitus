@@ -1,10 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" rx="110" fill="#0d0d14"/>
-  <!-- H shape -->
   <rect x="90" y="110" width="72" height="292" rx="28" fill="#7c5cfc"/>
   <rect x="350" y="110" width="72" height="292" rx="28" fill="#7c5cfc"/>
   <rect x="90" y="220" width="332" height="72" rx="28" fill="#7c5cfc"/>
-  <!-- leaf accent top-right of H -->
   <ellipse cx="390" cy="130" rx="36" ry="22" fill="#10b981" transform="rotate(-35 390 130)"/>
   <ellipse cx="412" cy="108" rx="28" ry="16" fill="#34d399" transform="rotate(-35 412 108)"/>
 </svg>

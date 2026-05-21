@@ -4,7 +4,7 @@ export const api = axios.create({ baseURL: '/api' })
 
 export type User = {
   id: string; name: string; phone: string; height: number
-  isAdmin: boolean; createdAt: string
+  age: number; isAdmin: boolean; createdAt: string
   settings: UserSettings | null
   weightGoal?: { min: number; ideal: number; max: number }
 }
@@ -24,6 +24,16 @@ export type DashboardData = {
   }
   weight: { latest: number | null; loggedAt: string | null; due: boolean; daysAgo: number | null }
   gamification: { streak: number; points: number }
+}
+export type WeightLog = {
+  id: string; weight: number; isOfficial: boolean; loggedAt: string
+}
+export type WeightStatus = {
+  latest: number | null; latestAt: string | null
+  lastOfficial: number | null; lastOfficialAt: string | null
+  due: boolean; daysAgo: number | null; daysUntilNext: number
+  intervalDays: number
+  goal: { min: number; ideal: number; max: number } | null
 }
 export type RankingUser = {
   userId: string; name: string; isAdmin: boolean
@@ -46,7 +56,7 @@ export type GroupTask = {
 
 // Users
 export const getUsers = () => api.get<User[]>('/users').then(r => r.data)
-export const createUser = (d: { name: string; phone: string; height: number }) =>
+export const createUser = (d: { name: string; phone: string; height: number; age: number }) =>
   api.post<User>('/users', d).then(r => r.data)
 export const getUser = (id: string) => api.get<User>(`/users/${id}`).then(r => r.data)
 
@@ -61,11 +71,15 @@ export const deleteWaterLog = (logId: string) => api.delete(`/water/${logId}`)
 
 // Weight
 export const logWeight = (userId: string, weight: number) =>
-  api.post<{ newWaterGoal: number }>(`/weight/${userId}`, { weight }).then(r => r.data)
+  api.post<{ isOfficial: boolean; newWaterGoal: number; weightPoints: { points: number; reason: string } | null }>(`/weight/${userId}`, { weight }).then(r => r.data)
 export const getWeightHistory = (userId: string) =>
-  api.get<{ id: string; weight: number; loggedAt: string }[]>(`/weight/${userId}/history`).then(r => r.data)
+  api.get<WeightLog[]>(`/weight/${userId}/history`).then(r => r.data)
+export const getWeightOfficial = (userId: string) =>
+  api.get<WeightLog[]>(`/weight/${userId}/official`).then(r => r.data)
 export const getWeightGoal = (userId: string) =>
   api.get<{ min: number; ideal: number; max: number }>(`/weight/${userId}/goal`).then(r => r.data)
+export const getWeightStatus = (userId: string) =>
+  api.get<WeightStatus>(`/weight/${userId}/status`).then(r => r.data)
 
 // Activity
 export const logActivity = (userId: string, d: { durationMinutes: number; description?: string }) =>

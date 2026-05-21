@@ -10,7 +10,7 @@ export function SelectUser({ onSelect }: Props) {
   const qc = useQueryClient()
   const { data: users, isLoading } = useQuery({ queryKey: ['users'], queryFn: getUsers })
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ name: '', phone: '', height: '' })
+  const [form, setForm] = useState({ name: '', phone: '', height: '', age: '' })
   const [error, setError] = useState('')
 
   const mutation = useMutation({
@@ -38,7 +38,7 @@ export function SelectUser({ onSelect }: Props) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    mutation.mutate({ name: form.name, phone: form.phone, height: parseFloat(form.height) })
+    mutation.mutate({ name: form.name, phone: form.phone, height: parseFloat(form.height), age: parseInt(form.age) })
   }
 
   return (
@@ -94,6 +94,7 @@ export function SelectUser({ onSelect }: Props) {
                 {[
                   { key: 'name', label: 'Nome', type: 'text', placeholder: 'Seu nome' },
                   { key: 'phone', label: 'WhatsApp', type: 'tel', placeholder: '11 99999-9999' },
+                  { key: 'age', label: 'Idade (anos)', type: 'number', placeholder: '28' },
                   { key: 'height', label: 'Altura (cm)', type: 'number', placeholder: '170' },
                 ].map(({ key, label, type, placeholder }) => (
                   <div key={key}>
