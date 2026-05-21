@@ -4,6 +4,7 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm install
 COPY frontend/ .
+RUN node scripts/gen-icons.mjs
 RUN npm run build
 
 # Stage 2: build backend
