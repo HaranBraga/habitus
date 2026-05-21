@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getWeightOfficial, getWeightHistory, getWeightStatus, logWeight, type WeightLog } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
 import { Scale, TrendingDown, TrendingUp, Minus, Plus, Loader2, Trophy, AlertCircle, CheckCircle2, Clock } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts'
 
 type Props = { userId: string }
 
@@ -134,6 +135,35 @@ export function WeightEvolutionPage({ userId }: Props) {
           </div>
         )}
       </div>
+
+      {/* Chart */}
+      {official && official.length >= 2 && (
+        <div className="rounded-2xl p-4" style={{ background: '#1c1c28', border: '1px solid #2a2a3a' }}>
+          <p className="text-xs text-gray-600 uppercase tracking-wider font-medium mb-3">Evolução do peso</p>
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={[...official].reverse().map(l => ({
+              data: new Date(l.loggedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+              peso: l.weight,
+            }))}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" />
+              <XAxis dataKey="data" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false}
+                domain={['auto', 'auto']} width={36} />
+              <Tooltip
+                contentStyle={{ background: '#1c1c28', border: '1px solid #2a2a3a', borderRadius: 12, color: '#fff' }}
+                labelStyle={{ color: '#9090b0', fontSize: 11 }}
+                formatter={(v: number) => [`${v}kg`, 'Peso']}
+              />
+              {goal && <ReferenceLine y={goal.ideal} stroke="#7c5cfc" strokeDasharray="4 2"
+                label={{ value: `Ideal ${goal.ideal}kg`, fill: '#9d82fd', fontSize: 9, position: 'right' }} />}
+              {status?.personalGoalKg && <ReferenceLine y={status.personalGoalKg} stroke="#ec4899" strokeDasharray="4 2"
+                label={{ value: `Meta ${status.personalGoalKg}kg`, fill: '#f472b6', fontSize: 9, position: 'left' }} />}
+              <Line type="monotone" dataKey="peso" stroke="#ec4899" strokeWidth={2}
+                dot={{ fill: '#ec4899', r: 3 }} activeDot={{ r: 5 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {/* Log weight */}
       <div className="space-y-2">

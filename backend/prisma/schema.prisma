@@ -23,7 +23,8 @@ model User {
   readingLogs    ReadingLog[]
   englishLogs    EnglishLog[]
   settings       UserSettings?
-  groupTaskLogs  GroupTaskLog[]
+  groupTaskLogs     GroupTaskLog[]
+  pushSubscriptions PushSubscription[]
 }
 
 model UserSettings {
@@ -101,4 +102,14 @@ model GroupTaskLog {
   userId   String
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   loggedAt DateTime  @default(now())
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
 }

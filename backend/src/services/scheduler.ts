@@ -2,18 +2,15 @@ import cron from 'node-cron'
 import { prisma } from '../server'
 import { sendWhatsApp, buildWeightReminderMessage, buildDailySummaryMessage } from './evolution'
 import { generateSmartWaterMessage } from './deepseek'
+import { sendPushToUser } from './webpush'
 import { startOfDay, endOfDay } from '../utils/date'
 
 export function startScheduler() {
-  // Verifica água a cada hora das 7h às 22h
   cron.schedule('0 7-22 * * *', checkWaterReminders)
-
-  // Verifica peso todo dia às 8h
   cron.schedule('0 8 * * *', checkWeightReminders)
-
-  // Resumo diário às 21h
   cron.schedule('0 21 * * *', sendDailySummaries)
-
+  // Verifica celebração às 22h (depois dos sumários)
+  cron.schedule('0 22 * * *', checkCelebration)
   console.log('Scheduler de lembretes iniciado')
 }
 
@@ -30,22 +27,19 @@ async function checkWaterReminders() {
     const recentLog = await prisma.waterLog.findFirst({
       where: { userId: user.id, loggedAt: { gte: since } },
     })
-
     if (recentLog) continue
 
     const todayLogs = await prisma.waterLog.findMany({
       where: { userId: user.id, loggedAt: { gte: startOfDay(now), lte: endOfDay(now) } },
     })
     const todayTotal = todayLogs.reduce((s, l) => s + l.amountMl, 0)
-
     if (todayTotal >= waterGoal) continue
 
-    // Urgente: passada das 14h e menos de 500ml
     const isUrgent = hour >= 14 && todayTotal < 500
-
     const msg = await generateSmartWaterMessage(user.name, todayTotal, waterGoal, hour)
     const prefix = isUrgent ? '🚨 *URGENTE* — ' : ''
     await sendWhatsApp(user.phone, prefix + msg)
+    await sendPushToUser(user.id, isUrgent ? '💧 Atenção!' : '💧 Lembrete de água', msg.slice(0, 120))
   }
 }
 
@@ -53,7 +47,6 @@ async function checkWeightReminders() {
   const users = await prisma.user.findMany({ include: { settings: true } })
   for (const user of users) {
     const intervalDays = user.settings?.weightCheckIntervalDays ?? 7
-    // Only check official weight logs
     const latest = await prisma.weightLog.findFirst({
       where: { userId: user.id, isOfficial: true }, orderBy: { loggedAt: 'desc' },
     })
@@ -62,7 +55,9 @@ async function checkWeightReminders() {
       : intervalDays + 1
 
     if (daysAgo >= intervalDays) {
-      await sendWhatsApp(user.phone, buildWeightReminderMessage(user.name, daysAgo))
+      const msg = buildWeightReminderMessage(user.name, daysAgo)
+      await sendWhatsApp(user.phone, msg)
+      await sendPushToUser(user.id, '⚖️ Hora de pesar!', `Você não registra o peso há ${daysAgo} dias.`)
     }
   }
 }
@@ -74,18 +69,16 @@ async function sendDailySummaries() {
   for (const user of users) {
     const dayStart = startOfDay(now)
     const dayEnd = endOfDay(now)
-    const [waterLogs, actLogs, readLogs, engLog, weightLog] = await Promise.all([
+    const [waterLogs, actLogs, readLogs, engLog] = await Promise.all([
       prisma.waterLog.findMany({ where: { userId: user.id, loggedAt: { gte: dayStart, lte: dayEnd } } }),
       prisma.activityLog.findMany({ where: { userId: user.id, loggedAt: { gte: dayStart, lte: dayEnd } } }),
       prisma.readingLog.findMany({ where: { userId: user.id, loggedAt: { gte: dayStart, lte: dayEnd } } }),
       prisma.englishLog.findFirst({ where: { userId: user.id, loggedAt: { gte: dayStart, lte: dayEnd } } }),
-      prisma.weightLog.findFirst({ where: { userId: user.id }, orderBy: { loggedAt: 'desc' } }),
     ])
 
     const waterGoal = user.settings?.waterGoalMl ?? 2000
     const actGoal = user.settings?.activityGoalMinutes ?? 30
     const readGoal = user.settings?.readingGoalMinutes ?? 20
-
     const waterTotal = waterLogs.reduce((s, l) => s + l.amountMl, 0)
     const actTotal = actLogs.reduce((s, l) => s + l.durationMinutes, 0)
     const readTotal = readLogs.reduce((s, l) => s + l.durationMinutes, 0)
@@ -96,22 +89,56 @@ async function sendDailySummaries() {
     points += Math.min(15, Math.round((readTotal / readGoal) * 15))
     if (engLog) points += 20 + Math.min(10, Math.floor((engLog.durationMinutes ?? 15) / 5))
 
-    const allWater = await prisma.waterLog.findMany({
-      where: { userId: user.id }, select: { loggedAt: true },
-    })
-    const days = new Set(allWater.map((l) => l.loggedAt.toISOString().slice(0, 10)))
+    const allWater = await prisma.waterLog.findMany({ where: { userId: user.id }, select: { loggedAt: true } })
+    const days = new Set(allWater.map(l => l.loggedAt.toISOString().slice(0, 10)))
     let streak = 0
     for (let i = 0; i < 365; i++) {
-      const d = new Date(now)
-      d.setDate(d.getDate() - i)
-      if (days.has(d.toISOString().slice(0, 10))) streak++
-      else break
+      const d = new Date(now); d.setDate(d.getDate() - i)
+      if (days.has(d.toISOString().slice(0, 10))) streak++; else break
     }
 
     const msg = buildDailySummaryMessage(user.name, {
-      waterTotal, waterGoal, activityTotal: actTotal, englishStudied: !!engLog,
-      readingTotal: readTotal, streak, points,
+      waterTotal, waterGoal, activityTotal: actTotal, englishStudied: !!engLog, readingTotal: readTotal, streak, points,
     })
     await sendWhatsApp(user.phone, msg)
+    await sendPushToUser(user.id, '🌙 Resumo do dia', `${points} pts hoje · ${streak} dias de sequência`)
+  }
+}
+
+async function checkCelebration() {
+  const now = new Date()
+  const dayStart = startOfDay(now)
+  const dayEnd = endOfDay(now)
+
+  const users = await prisma.user.findMany({ include: { settings: true } })
+  if (users.length < 2) return
+
+  // Check if ALL users completed ALL their main goals
+  const results = await Promise.all(users.map(async user => {
+    const waterGoal = user.settings?.waterGoalMl ?? 2000
+    const actGoal = user.settings?.activityGoalMinutes ?? 30
+
+    const [water, act, eng] = await Promise.all([
+      prisma.waterLog.findMany({ where: { userId: user.id, loggedAt: { gte: dayStart, lte: dayEnd } } }),
+      prisma.activityLog.findMany({ where: { userId: user.id, loggedAt: { gte: dayStart, lte: dayEnd } } }),
+      prisma.englishLog.findFirst({ where: { userId: user.id, loggedAt: { gte: dayStart, lte: dayEnd } } }),
+    ])
+
+    const waterTotal = water.reduce((s, l) => s + l.amountMl, 0)
+    const actTotal = act.reduce((s, l) => s + l.durationMinutes, 0)
+
+    return {
+      user,
+      completed: waterTotal >= waterGoal && actTotal >= actGoal && !!eng,
+    }
+  }))
+
+  if (results.every(r => r.completed)) {
+    const names = results.map(r => r.user.name.split(' ')[0]).join(' e ')
+    const celebMsg = `🎉 *MISSÃO CUMPRIDA!*\n\n${names} completaram todas as metas hoje! Isso é incrível! 💪🔥\n\nContinuem assim — consistência é o que transforma hábito em estilo de vida!`
+    for (const { user } of results) {
+      await sendWhatsApp(user.phone, celebMsg)
+      await sendPushToUser(user.id, '🎉 Missão cumprida!', `${names} completaram todas as metas hoje!`)
+    }
   }
 }

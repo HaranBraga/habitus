@@ -12,7 +12,9 @@ import { settingsRoutes } from './routes/settings'
 import { groupTasksRoutes } from './routes/grouptasks'
 import { rankingRoutes } from './routes/ranking'
 import { analysisRoutes } from './routes/analysis'
+import { pushRoutes } from './routes/push'
 import { startScheduler } from './services/scheduler'
+import { initWebPush } from './services/webpush'
 
 export const prisma = new PrismaClient()
 
@@ -35,9 +37,11 @@ async function main() {
   app.register(groupTasksRoutes, { prefix: '/api/grouptasks' })
   app.register(rankingRoutes, { prefix: '/api/ranking' })
   app.register(analysisRoutes, { prefix: '/api/analysis' })
+  app.register(pushRoutes, { prefix: '/api/push' })
 
   app.get('/health', async () => ({ status: 'ok' }))
 
+  initWebPush()
   startScheduler()
 
   const port = Number(process.env.PORT) || 3001

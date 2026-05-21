@@ -1,10 +1,40 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getDashboard, getUser, updateSettings, updateProfile, type UserSettings } from '../lib/api'
+import { getDashboard, getUser, updateSettings, updateProfile, type UserSettings, api } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
-import { Settings, Save, Loader2, User } from 'lucide-react'
+import { Settings, Save, Loader2, User, Bell, BellOff } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 type Props = { userId: string }
+
+async function subscribePush(userId: string): Promise<boolean> {
+  const { data } = await api.get<{ key: string | null; enabled: boolean }>('/push/vapid-public-key')
+  if (!data.key) return false
+
+  const permission = await Notification.requestPermission()
+  if (permission !== 'granted') return false
+
+  const reg = await navigator.serviceWorker.ready
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: data.key,
+  })
+  await api.post(`/push/subscribe/${userId}`, sub.toJSON())
+  return true
+}
+
+async function unsubscribePush(userId: string) {
+  const reg = await navigator.serviceWorker.ready
+  const sub = await reg.pushManager.getSubscription()
+  if (sub) {
+    await api.delete(`/push/subscribe/${userId}`, { data: { endpoint: sub.endpoint } })
+    await sub.unsubscribe()
+  }
+}
+
+function getPushState(): 'unsupported' | 'denied' | 'granted' | 'default' {
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) return 'unsupported'
+  return Notification.permission as 'denied' | 'granted' | 'default'
+}
 
 export function SettingsPage({ userId }: Props) {
   const qc = useQueryClient()
@@ -15,6 +45,8 @@ export function SettingsPage({ userId }: Props) {
   const [profileForm, setProfileForm] = useState({ name: '', height: '', age: '' })
   const [savedSettings, setSavedSettings] = useState(false)
   const [savedProfile, setSavedProfile] = useState(false)
+  const [pushState, setPushState] = useState(getPushState)
+  const [pushLoading, setPushLoading] = useState(false)
 
   useEffect(() => {
     if (data?.settings) {
@@ -56,21 +88,31 @@ export function SettingsPage({ userId }: Props) {
     },
   })
 
-  const inp = (
-    label: string, value: string,
-    onChange: (v: string) => void,
-    opts: { type?: string; placeholder?: string; unit?: string; min?: number; max?: number; step?: number } = {}
-  ) => (
+  const handlePushToggle = async () => {
+    setPushLoading(true)
+    try {
+      if (pushState === 'granted') {
+        await unsubscribePush(userId)
+        setPushState('default')
+      } else {
+        const ok = await subscribePush(userId)
+        setPushState(ok ? 'granted' : Notification.permission as 'denied' | 'default')
+      }
+    } finally {
+      setPushLoading(false)
+    }
+  }
+
+  const inp = (label: string, value: string, onChange: (v: string) => void,
+    opts: { type?: string; placeholder?: string; unit?: string; min?: number; max?: number; step?: number } = {}) => (
     <div className="flex items-center justify-between px-4 py-3 rounded-xl"
       style={{ background: '#1c1c28', border: '1px solid #2a2a3a' }}>
       <div>
         <p className="text-sm font-medium text-white">{label}</p>
         {opts.unit && <p className="text-xs text-gray-600">{opts.unit}</p>}
       </div>
-      <input type={opts.type ?? 'number'} value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={opts.placeholder}
-        min={opts.min} max={opts.max} step={opts.step ?? 1}
+      <input type={opts.type ?? 'number'} value={value} onChange={e => onChange(e.target.value)}
+        placeholder={opts.placeholder} min={opts.min} max={opts.max} step={opts.step ?? 1}
         className="w-24 text-right px-3 py-2 rounded-xl text-sm text-white font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
         style={{ background: '#242434', border: '1px solid #2a2a3a' }} />
     </div>
@@ -104,6 +146,36 @@ export function SettingsPage({ userId }: Props) {
         </button>
       </div>
 
+      {/* Push notifications */}
+      {pushState !== 'unsupported' && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <Bell size={13} className="text-gray-600" />
+            <p className="text-xs text-gray-600 uppercase tracking-wider font-medium">Notificações</p>
+          </div>
+          <button onClick={handlePushToggle} disabled={pushLoading || pushState === 'denied'}
+            className="w-full flex items-center gap-3 p-4 rounded-xl transition-all active:scale-95 disabled:opacity-50"
+            style={{ background: '#1c1c28', border: `1px solid ${pushState === 'granted' ? 'rgba(124,92,252,0.3)' : '#2a2a3a'}` }}>
+            {pushLoading ? <Loader2 size={18} className="animate-spin text-primary" />
+              : pushState === 'granted' ? <Bell size={18} className="text-primary" />
+              : <BellOff size={18} className="text-gray-600" />}
+            <div className="flex-1 text-left">
+              <p className="text-sm font-medium text-white">
+                {pushState === 'granted' ? 'Notificações ativas' : pushState === 'denied' ? 'Notificações bloqueadas' : 'Ativar notificações'}
+              </p>
+              <p className="text-xs text-gray-600 mt-0.5">
+                {pushState === 'granted' ? 'Toque para desativar'
+                  : pushState === 'denied' ? 'Libere nas configurações do navegador'
+                  : 'Lembretes de água, peso e metas no celular'}
+              </p>
+            </div>
+            <div className={`w-10 h-5 rounded-full transition-all ${pushState === 'granted' ? 'bg-primary' : 'bg-gray-700'}`}>
+              <div className={`w-4 h-4 rounded-full bg-white m-0.5 transition-all ${pushState === 'granted' ? 'translate-x-5' : ''}`} />
+            </div>
+          </button>
+        </div>
+      )}
+
       {/* Goals */}
       <div className="space-y-2">
         <p className="text-xs text-gray-600 uppercase tracking-wider font-medium px-1">Metas diárias</p>
@@ -122,8 +194,7 @@ export function SettingsPage({ userId }: Props) {
               <p className="text-sm font-medium text-white">Minha meta</p>
               <p className="text-xs text-gray-600">kg desejados (sua escolha)</p>
             </div>
-            <input type="number" step="0.1" min="30" max="250"
-              placeholder="ex: 72"
+            <input type="number" step="0.1" min="30" max="250" placeholder="ex: 72"
               value={settingsForm.weightGoalKg ?? ''}
               onChange={e => setSettingsForm(f => ({ ...f, weightGoalKg: e.target.value }))}
               className="w-24 text-right px-3 py-2 rounded-xl text-sm text-white font-semibold focus:outline-none focus:ring-2 focus:ring-pink-500"
