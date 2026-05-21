@@ -1,7 +1,8 @@
+/// <reference lib="webworker" />
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
 import { clientsClaim } from 'workbox-core'
 
-declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: unknown[] }
+declare let self: ServiceWorkerGlobalScope & { __WB_MANIFEST: unknown[] }
 
 self.skipWaiting()
 clientsClaim()
@@ -27,10 +28,10 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const url = event.notification.data?.url ?? '/'
   event.waitUntil(
-    (self.clients as Clients).matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       const existing = clientList.find(c => c.url.includes(self.location.origin))
       if (existing) { existing.focus(); return }
-      return (self.clients as Clients).openWindow(url)
+      return self.clients.openWindow(url)
     })
   )
 })

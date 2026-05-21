@@ -41,7 +41,8 @@ export function SettingsPage({ userId }: Props) {
   const { data } = useQuery({ queryKey: ['dashboard', userId], queryFn: () => getDashboard(userId) })
   const { data: user } = useQuery({ queryKey: ['user', userId], queryFn: () => getUser(userId) })
 
-  const [settingsForm, setSettingsForm] = useState<Partial<UserSettings & { weightGoalKg: string }>>({})
+  const [settingsForm, setSettingsForm] = useState<Partial<UserSettings>>({})
+  const [weightGoalKgStr, setWeightGoalKgStr] = useState('')
   const [profileForm, setProfileForm] = useState({ name: '', height: '', age: '' })
   const [savedSettings, setSavedSettings] = useState(false)
   const [savedProfile, setSavedProfile] = useState(false)
@@ -50,10 +51,8 @@ export function SettingsPage({ userId }: Props) {
 
   useEffect(() => {
     if (data?.settings) {
-      setSettingsForm({
-        ...data.settings,
-        weightGoalKg: data.settings.weightGoalKg != null ? String(data.settings.weightGoalKg) : '',
-      })
+      setSettingsForm(data.settings)
+      setWeightGoalKgStr(data.settings.weightGoalKg != null ? String(data.settings.weightGoalKg) : '')
     }
   }, [data?.settings])
 
@@ -64,8 +63,8 @@ export function SettingsPage({ userId }: Props) {
   const settingsMutation = useMutation({
     mutationFn: () => updateSettings(userId, {
       ...settingsForm,
-      weightGoalKg: settingsForm.weightGoalKg ? parseFloat(String(settingsForm.weightGoalKg)) : null,
-    } as Partial<UserSettings>),
+      weightGoalKg: weightGoalKgStr ? parseFloat(weightGoalKgStr) : null,
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['dashboard', userId] })
       qc.invalidateQueries({ queryKey: ['weight-status', userId] })
@@ -195,8 +194,8 @@ export function SettingsPage({ userId }: Props) {
               <p className="text-xs text-gray-600">kg desejados (sua escolha)</p>
             </div>
             <input type="number" step="0.1" min="30" max="250" placeholder="ex: 72"
-              value={settingsForm.weightGoalKg ?? ''}
-              onChange={e => setSettingsForm(f => ({ ...f, weightGoalKg: e.target.value }))}
+              value={weightGoalKgStr}
+              onChange={e => setWeightGoalKgStr(e.target.value)}
               className="w-24 text-right px-3 py-2 rounded-xl text-sm text-white font-semibold focus:outline-none focus:ring-2 focus:ring-pink-500"
               style={{ background: '#242434', border: '1px solid rgba(236,72,153,0.2)' }} />
           </div>
