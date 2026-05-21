@@ -1,6 +1,5 @@
 import { FastifyInstance } from 'fastify'
 import { prisma } from '../server'
-import { startOfDay, endOfDay } from '../utils/date'
 import { calcWeightPoints, calcWeightGoal } from './weight'
 
 function calcPoints(data: {
@@ -37,53 +36,6 @@ async function calcStreak(userId: string): Promise<number> {
   return streak
 }
 
-async function getDayStats(userId: string, date: Date, settings: { waterGoalMl: number; activityGoalMinutes: number; readingGoalMinutes: number; englishGoalMinutes: number; weightCheckIntervalDays: number }) {
-  const dayStart = startOfDay(date)
-  const dayEnd = endOfDay(date)
-
-  const [waterLogs, actLogs, readLogs, engLog, weightLog, taskLogs, groupTasks] = await Promise.all([
-    prisma.waterLog.findMany({ where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } } }),
-    prisma.activityLog.findMany({ where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } } }),
-    prisma.readingLog.findMany({ where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } } }),
-    prisma.englishLog.findFirst({ where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } } }),
-    // Only official weight counts for points
-    prisma.weightLog.findFirst({ where: { userId, isOfficial: true, loggedAt: { gte: dayStart, lte: dayEnd } } }),
-    prisma.groupTaskLog.findMany({ where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } } }),
-    prisma.groupTask.findMany({ where: { active: true } }),
-  ])
-
-  const waterTotal = waterLogs.reduce((s, l) => s + l.amountMl, 0)
-  const actTotal = actLogs.reduce((s, l) => s + l.durationMinutes, 0)
-  const readTotal = readLogs.reduce((s, l) => s + l.durationMinutes, 0)
-  const engMin = engLog?.durationMinutes ?? (engLog ? settings.englishGoalMinutes : 0)
-  const completedTaskIds = new Set(taskLogs.map(l => l.taskId))
-  const groupTaskPoints = groupTasks
-    .filter(t => completedTaskIds.has(t.id))
-    .reduce((s, t) => s + t.pointValue, 0)
-
-  let officialWeightPoints = 0
-  if (weightLog) {
-    const user = await prisma.user.findUnique({ where: { id: userId } })
-    if (user) {
-      const goal = calcWeightGoal(user.height)
-      const prevOfficial = await prisma.weightLog.findFirst({
-        where: { userId, isOfficial: true, loggedAt: { lt: dayStart } },
-        orderBy: { loggedAt: 'desc' },
-      })
-      const { points } = calcWeightPoints(weightLog.weight, prevOfficial?.weight ?? null, goal.ideal)
-      officialWeightPoints = points
-    }
-  }
-
-  return calcPoints({
-    waterTotal, waterGoal: settings.waterGoalMl,
-    activityTotal: actTotal, activityGoal: settings.activityGoalMinutes,
-    readingTotal: readTotal, readingGoal: settings.readingGoalMinutes,
-    englishMinutes: engMin,
-    officialWeightPoints,
-    groupTaskPoints,
-  })
-}
 
 async function getUserFullStats(userId: string) {
   const user = await prisma.user.findUnique({ where: { id: userId }, include: { settings: true } })
@@ -98,54 +50,91 @@ async function getUserFullStats(userId: string) {
   }
 
   const now = new Date()
-
-  // Today's points
-  const todayPoints = await getDayStats(userId, now, settings)
-
-  // Monthly points — sum each day of current month
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const daysInMonth = Math.min(now.getDate(), 31)
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+
+  // Batch-load ALL month data in 7 queries instead of 7 × N days
+  const [mWater, mAct, mRead, mEng, mWeight, mTaskLogs, mGroupTasks] = await Promise.all([
+    prisma.waterLog.findMany({ where: { userId, loggedAt: { gte: monthStart, lte: monthEnd } } }),
+    prisma.activityLog.findMany({ where: { userId, loggedAt: { gte: monthStart, lte: monthEnd } } }),
+    prisma.readingLog.findMany({ where: { userId, loggedAt: { gte: monthStart, lte: monthEnd } } }),
+    prisma.englishLog.findMany({ where: { userId, loggedAt: { gte: monthStart, lte: monthEnd } } }),
+    prisma.weightLog.findMany({ where: { userId, isOfficial: true, loggedAt: { gte: monthStart, lte: monthEnd } } }),
+    prisma.groupTaskLog.findMany({ where: { userId, loggedAt: { gte: monthStart, lte: monthEnd } } }),
+    prisma.groupTask.findMany({ where: { active: true } }),
+  ])
+
+  // Group by day key YYYY-MM-DD
+  const dayKey = (d: Date) => d.toISOString().slice(0, 10)
+  const waterByDay = new Map<string, number>()
+  mWater.forEach(l => { const k = dayKey(l.loggedAt); waterByDay.set(k, (waterByDay.get(k) ?? 0) + l.amountMl) })
+  const actByDay = new Map<string, number>()
+  mAct.forEach(l => { const k = dayKey(l.loggedAt); actByDay.set(k, (actByDay.get(k) ?? 0) + l.durationMinutes) })
+  const readByDay = new Map<string, number>()
+  mRead.forEach(l => { const k = dayKey(l.loggedAt); readByDay.set(k, (readByDay.get(k) ?? 0) + l.durationMinutes) })
+  const engByDay = new Map<string, number>()
+  mEng.forEach(l => { const k = dayKey(l.loggedAt); engByDay.set(k, (engByDay.get(k) ?? 0) + (l.durationMinutes ?? settings.englishGoalMinutes)) })
+  const weightByDay = new Map<string, boolean>()
+  mWeight.forEach(l => weightByDay.set(dayKey(l.loggedAt), true))
+  const taskCompletedByDay = new Map<string, Set<string>>()
+  mTaskLogs.forEach(l => { const k = dayKey(l.loggedAt); if (!taskCompletedByDay.has(k)) taskCompletedByDay.set(k, new Set()); taskCompletedByDay.get(k)!.add(l.taskId) })
+
+  // Sum points across all days this month
+  const activeDays = new Set([
+    ...waterByDay.keys(), ...actByDay.keys(), ...readByDay.keys(),
+    ...engByDay.keys(), ...weightByDay.keys(), ...taskCompletedByDay.keys(),
+  ])
+
   let monthlyPoints = 0
-  for (let d = 0; d < daysInMonth; d++) {
-    const day = new Date(monthStart)
-    day.setDate(day.getDate() + d)
-    if (day <= now) {
-      monthlyPoints += await getDayStats(userId, day, settings)
-    }
+  for (const k of activeDays) {
+    const taskPts = [...(taskCompletedByDay.get(k) ?? [])].reduce((s, tid) => {
+      return s + (mGroupTasks.find(t => t.id === tid)?.pointValue ?? 0)
+    }, 0)
+    monthlyPoints += calcPoints({
+      waterTotal: waterByDay.get(k) ?? 0, waterGoal: settings.waterGoalMl,
+      activityTotal: actByDay.get(k) ?? 0, activityGoal: settings.activityGoalMinutes,
+      readingTotal: readByDay.get(k) ?? 0, readingGoal: settings.readingGoalMinutes,
+      englishMinutes: engByDay.get(k) ?? 0,
+      officialWeightPoints: weightByDay.has(k) ? 15 : 0,
+      groupTaskPoints: taskPts,
+    })
   }
 
-  const streak = await calcStreak(userId)
+  // Today's points (subset of above, use same batch data)
+  const todayKey = dayKey(now)
+  const todayTaskPts = [...(taskCompletedByDay.get(todayKey) ?? [])].reduce((s, tid) => {
+    return s + (mGroupTasks.find(t => t.id === tid)?.pointValue ?? 0)
+  }, 0)
+  const todayPoints = calcPoints({
+    waterTotal: waterByDay.get(todayKey) ?? 0, waterGoal: settings.waterGoalMl,
+    activityTotal: actByDay.get(todayKey) ?? 0, activityGoal: settings.activityGoalMinutes,
+    readingTotal: readByDay.get(todayKey) ?? 0, readingGoal: settings.readingGoalMinutes,
+    englishMinutes: engByDay.get(todayKey) ?? 0,
+    officialWeightPoints: weightByDay.has(todayKey) ? 15 : 0,
+    groupTaskPoints: todayTaskPts,
+  })
+
+  const [streak, latestWeight] = await Promise.all([
+    calcStreak(userId),
+    prisma.weightLog.findFirst({ where: { userId }, orderBy: { loggedAt: 'desc' } }),
+  ])
   const totalPoints = streak * 50 + monthlyPoints
 
   const level = totalPoints < 500 ? 1 : totalPoints < 1500 ? 2
     : totalPoints < 3000 ? 3 : totalPoints < 6000 ? 4 : 5
   const levelNames = ['', 'Iniciante', 'Aprendiz', 'Comprometido', 'Consistente', 'Elite']
 
-  // Today's details
-  const dayStart = startOfDay(now)
-  const dayEnd = endOfDay(now)
-  const [waterLogs, actLogs, readLogs, engLog, taskLogs, groupTasks] = await Promise.all([
-    prisma.waterLog.findMany({ where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } } }),
-    prisma.activityLog.findMany({ where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } } }),
-    prisma.readingLog.findMany({ where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } } }),
-    prisma.englishLog.findFirst({ where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } } }),
-    prisma.groupTaskLog.findMany({ where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } } }),
-    prisma.groupTask.findMany({ where: { active: true } }),
-  ])
-
-  const latestWeight = await prisma.weightLog.findFirst({ where: { userId }, orderBy: { loggedAt: 'desc' } })
-
   return {
     userId, name: user.name, isAdmin: user.isAdmin,
     todayPoints, monthlyPoints, streak,
     level, levelName: levelNames[level], totalPoints,
     today: {
-      water: { total: waterLogs.reduce((s, l) => s + l.amountMl, 0), goal: settings.waterGoalMl },
-      activity: { total: actLogs.reduce((s, l) => s + l.durationMinutes, 0), goal: settings.activityGoalMinutes },
-      reading: { total: readLogs.reduce((s, l) => s + l.durationMinutes, 0), goal: settings.readingGoalMinutes },
-      english: { studied: !!engLog },
-      groupTasksCompleted: taskLogs.length,
-      groupTasksTotal: groupTasks.length,
+      water: { total: waterByDay.get(todayKey) ?? 0, goal: settings.waterGoalMl },
+      activity: { total: actByDay.get(todayKey) ?? 0, goal: settings.activityGoalMinutes },
+      reading: { total: readByDay.get(todayKey) ?? 0, goal: settings.readingGoalMinutes },
+      english: { studied: (engByDay.get(todayKey) ?? 0) > 0 },
+      groupTasksCompleted: taskCompletedByDay.get(todayKey)?.size ?? 0,
+      groupTasksTotal: mGroupTasks.length,
     },
     latestWeight: latestWeight?.weight ?? null,
   }

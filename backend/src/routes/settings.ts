@@ -18,6 +18,8 @@ export async function settingsRoutes(app: FastifyInstance) {
       weightCheckIntervalDays: z.number().min(1).max(30).optional(),
       activityGoalMinutes: z.number().min(5).max(240).optional(),
       readingGoalMinutes: z.number().min(5).max(240).optional(),
+      englishGoalMinutes: z.number().min(5).max(120).optional(),
+      weightGoalKg: z.number().min(30).max(250).nullable().optional(),
     })
     const parsed = schema.safeParse(req.body)
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() })
@@ -28,5 +30,18 @@ export async function settingsRoutes(app: FastifyInstance) {
       create: { userId, ...parsed.data },
     })
     return settings
+  })
+
+  // Update profile (name, height, age)
+  app.put('/:userId/profile', async (req, reply) => {
+    const { userId } = req.params as { userId: string }
+    const schema = z.object({
+      name: z.string().min(2).max(60).optional(),
+      height: z.number().min(100).max(250).optional(),
+      age: z.number().min(10).max(100).optional(),
+    })
+    const parsed = schema.safeParse(req.body)
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() })
+    return prisma.user.update({ where: { id: userId }, data: parsed.data })
   })
 }

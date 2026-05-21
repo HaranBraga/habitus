@@ -105,22 +105,32 @@ export function WeightEvolutionPage({ userId }: Props) {
           </div>
         </div>
 
-        {/* Goal range */}
-        {goal && (
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-gray-600">Meta:</span>
-            <span className="text-blue-400">{goal.min}kg</span>
-            <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: '#2a2a3a' }}>
-              {latest && (
-                <div className="h-full rounded-full transition-all"
-                  style={{
-                    background: latest >= goal.min && latest <= goal.max ? '#10b981' : '#f59e0b',
-                    width: `${Math.min(100, Math.max(0, ((latest - goal.min) / (goal.max - goal.min)) * 100))}%`,
-                  }} />
-              )}
-            </div>
-            <span className="text-red-400">{goal.max}kg</span>
-            <span className="text-primary font-bold">Ideal: {goal.ideal}kg</span>
+        {/* Personal goal vs system goal */}
+        {(goal || status?.personalGoalKg) && (
+          <div className="space-y-2">
+            {status?.personalGoalKg && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500">Minha meta pessoal</span>
+                <span className="font-bold text-pink-400">{status.personalGoalKg}kg</span>
+              </div>
+            )}
+            {goal && (
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-gray-600">Faixa IMC:</span>
+                <span className="text-blue-400">{goal.min}</span>
+                <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: '#2a2a3a' }}>
+                  {latest && (
+                    <div className="h-full rounded-full transition-all"
+                      style={{
+                        background: latest >= goal.min && latest <= goal.max ? '#10b981' : '#f59e0b',
+                        width: `${Math.min(100, Math.max(0, ((latest - goal.min) / (goal.max - goal.min)) * 100))}%`,
+                      }} />
+                  )}
+                </div>
+                <span className="text-red-400">{goal.max}</span>
+                <span className="text-primary font-semibold">Ideal {goal.ideal}kg</span>
+              </div>
+            )}
           </div>
         )}
       </div>

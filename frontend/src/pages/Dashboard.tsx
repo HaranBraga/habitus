@@ -100,6 +100,17 @@ export function Dashboard({ userId }: Props) {
   const dayName = new Date().toLocaleDateString('pt-BR', { weekday: 'long' })
   const dateStr = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })
 
+  // 7-day streak dots — last 7 days labels + today indicator
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - (6 - i))
+    return {
+      label: d.toLocaleDateString('pt-BR', { weekday: 'narrow' }),
+      isToday: i === 6,
+      active: i >= 7 - gamification.streak,
+    }
+  })
+
   const habitCards = [
     { to: '/water', label: 'Água', value: `${today.water.total}ml`, goal: today.water.goal,
       current: today.water.total, Icon: Droplets, accent: '#3b82f6', barColor: 'bg-blue-500',
@@ -149,6 +160,19 @@ export function Dashboard({ userId }: Props) {
           </div>
         </div>
         <ProgressBar value={levelProgress} max={100} color="bg-primary" height="h-1.5" />
+        {/* 7-day dots */}
+        <div className="flex items-center justify-between pt-1">
+          {weekDays.map((d, i) => (
+            <div key={i} className="flex flex-col items-center gap-1">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+                d.active ? 'bg-primary' : d.isToday ? 'border border-gray-700' : ''
+              }`} style={d.active && d.isToday ? { boxShadow: '0 0 8px rgba(124,92,252,0.5)' } : {}}>
+                {d.active && <div className="w-2 h-2 rounded-full bg-white opacity-80" />}
+              </div>
+              <span className="text-[9px] text-gray-700">{d.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Habit cards 2×2 */}

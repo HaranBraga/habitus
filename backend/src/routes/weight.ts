@@ -142,7 +142,7 @@ export async function weightRoutes(app: FastifyInstance) {
       ? Math.floor((Date.now() - lastOfficial.loggedAt.getTime()) / 86400000)
       : null
     const due = daysAgo === null || daysAgo >= intervalDays
-    const goal = user ? calcWeightGoal(user.height) : null
+    const systemGoal = user ? calcWeightGoal(user.height) : null
 
     return {
       latest: latest?.weight ?? null,
@@ -153,7 +153,8 @@ export async function weightRoutes(app: FastifyInstance) {
       daysAgo,
       daysUntilNext: daysAgo !== null ? Math.max(0, intervalDays - daysAgo) : 0,
       intervalDays,
-      goal,
+      goal: systemGoal,
+      personalGoalKg: settings?.weightGoalKg ?? null,
     }
   })
 }

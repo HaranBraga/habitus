@@ -12,6 +12,7 @@ export type UserSettings = {
   waterGoalMl: number; waterReminderIntervalHours: number
   weightCheckIntervalDays: number; activityGoalMinutes: number
   readingGoalMinutes: number; englishGoalMinutes: number
+  weightGoalKg: number | null
 }
 export type DashboardData = {
   user: { id: string; name: string; height: number }
@@ -34,6 +35,7 @@ export type WeightStatus = {
   due: boolean; daysAgo: number | null; daysUntilNext: number
   intervalDays: number
   goal: { min: number; ideal: number; max: number } | null
+  personalGoalKg: number | null
 }
 export type RankingUser = {
   userId: string; name: string; isAdmin: boolean
@@ -96,6 +98,8 @@ export const logEnglish = (userId: string, d: { studied: boolean; durationMinute
 // Settings
 export const updateSettings = (userId: string, d: Partial<UserSettings>) =>
   api.put(`/settings/${userId}`, d).then(r => r.data)
+export const updateProfile = (userId: string, d: { name?: string; height?: number; age?: number }) =>
+  api.put(`/settings/${userId}/profile`, d).then(r => r.data)
 
 // Group Tasks
 export const getGroupTasks = (userId: string) =>

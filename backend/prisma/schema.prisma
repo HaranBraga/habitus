@@ -36,6 +36,7 @@ model UserSettings {
   activityGoalMinutes        Int    @default(30)
   readingGoalMinutes         Int    @default(20)
   englishGoalMinutes         Int    @default(15)
+  weightGoalKg               Float?
 }
 
 model WeightLog {
