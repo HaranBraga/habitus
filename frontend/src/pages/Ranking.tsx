@@ -58,8 +58,8 @@ function UserActivityModal({ user, onClose }: { user: RankingUser; onClose: () =
     <div className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ background: 'rgba(0,0,0,0.65)' }}
       onClick={onClose}>
-      <div className="w-full max-w-lg rounded-t-3xl flex flex-col"
-        style={{ background: '#16161f', maxHeight: '85vh' }}
+      <div className="w-full max-w-lg rounded-t-3xl flex flex-col overflow-hidden"
+        style={{ background: '#16161f', height: '85vh' }}
         onClick={e => e.stopPropagation()}>
 
         {/* Handle */}
