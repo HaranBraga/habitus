@@ -58,17 +58,17 @@ function UserActivityModal({ user, onClose }: { user: RankingUser; onClose: () =
     <div className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ background: 'rgba(0,0,0,0.65)' }}
       onClick={onClose}>
-      <div className="w-full max-w-lg rounded-t-3xl overflow-hidden"
+      <div className="w-full max-w-lg rounded-t-3xl flex flex-col"
         style={{ background: '#16161f', maxHeight: '85vh' }}
         onClick={e => e.stopPropagation()}>
 
         {/* Handle */}
-        <div className="flex justify-center pt-3 pb-1">
+        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
           <div className="w-10 h-1 rounded-full" style={{ background: '#2a2a3a' }} />
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3">
+        <div className="flex items-center justify-between px-5 py-3 flex-shrink-0">
           <div>
             <h2 className="font-bold text-white text-lg">{user.name}</h2>
             <div className="flex items-center gap-3 mt-0.5">
@@ -93,7 +93,7 @@ function UserActivityModal({ user, onClose }: { user: RankingUser; onClose: () =
 
         {/* English badge */}
         {data && (
-          <div className="px-5 pb-3">
+          <div className="px-5 pb-3 flex-shrink-0">
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
               style={{ background: data.today.english.studied ? 'rgba(245,158,11,0.1)' : '#1c1c28', border: `1px solid ${data.today.english.studied ? 'rgba(245,158,11,0.2)' : '#2a2a3a'}` }}>
               <Languages size={14} style={{ color: data.today.english.studied ? '#f59e0b' : '#4b5563' }} />
@@ -109,7 +109,7 @@ function UserActivityModal({ user, onClose }: { user: RankingUser; onClose: () =
         )}
 
         {/* Scrollable content */}
-        <div className="overflow-y-auto px-5 pb-6 space-y-4" style={{ maxHeight: 'calc(85vh - 160px)' }}>
+        <div className="overflow-y-auto px-5 pb-6 space-y-4" style={{ WebkitOverflowScrolling: 'touch' }}>
           {isLoading ? (
             <div className="flex justify-center py-10">
               <Loader2 className="animate-spin text-primary" size={24} />
