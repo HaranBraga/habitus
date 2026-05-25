@@ -109,7 +109,7 @@ function UserActivityModal({ user, onClose }: { user: RankingUser; onClose: () =
         )}
 
         {/* Scrollable content */}
-        <div className="overflow-y-auto px-5 pb-6 space-y-4" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="overflow-y-auto flex-1 min-h-0 px-5 pb-6 space-y-4" style={{ WebkitOverflowScrolling: 'touch' }}>
           {isLoading ? (
             <div className="flex justify-center py-10">
               <Loader2 className="animate-spin text-primary" size={24} />
