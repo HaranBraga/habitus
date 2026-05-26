@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { prisma } from '../server'
 import { calcWeightPoints, calcWeightGoal } from './weight'
+import { toLocalDateStr } from '../utils/date'
 
 function calcPoints(data: {
   waterTotal: number; waterGoal: number
@@ -24,13 +25,13 @@ async function calcStreak(userId: string): Promise<number> {
   const logs = await prisma.waterLog.findMany({
     where: { userId }, orderBy: { loggedAt: 'desc' }, select: { loggedAt: true },
   })
-  const days = new Set(logs.map(l => l.loggedAt.toISOString().slice(0, 10)))
+  const days = new Set(logs.map(l => toLocalDateStr(l.loggedAt)))
   let streak = 0
   const today = new Date()
   for (let i = 0; i < 365; i++) {
     const d = new Date(today)
     d.setDate(d.getDate() - i)
-    if (days.has(d.toISOString().slice(0, 10))) streak++
+    if (days.has(toLocalDateStr(d))) streak++
     else break
   }
   return streak
@@ -64,8 +65,8 @@ async function getUserFullStats(userId: string) {
     prisma.groupTask.findMany({ where: { active: true } }),
   ])
 
-  // Group by day key YYYY-MM-DD
-  const dayKey = (d: Date) => d.toISOString().slice(0, 10)
+  // Group by day key YYYY-MM-DD in Acre timezone
+  const dayKey = (d: Date) => toLocalDateStr(d)
   const waterByDay = new Map<string, number>()
   mWater.forEach(l => { const k = dayKey(l.loggedAt); waterByDay.set(k, (waterByDay.get(k) ?? 0) + l.amountMl) })
   const actByDay = new Map<string, number>()
