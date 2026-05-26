@@ -1,3 +1,5 @@
+process.env.TZ = 'America/Rio_Branco'
+
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { PrismaClient } from '@prisma/client'
