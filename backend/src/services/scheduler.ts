@@ -3,7 +3,7 @@ import { prisma } from '../server'
 import { sendWhatsApp, buildWeightReminderMessage, buildDailySummaryMessage } from './evolution'
 import { generateSmartWaterMessage } from './deepseek'
 import { sendPushToUser } from './webpush'
-import { startOfDay, endOfDay } from '../utils/date'
+import { startOfDay, endOfDay, toLocalDateStr } from '../utils/date'
 
 export function startScheduler() {
   cron.schedule('0 7-22 * * *', checkWaterReminders)
@@ -90,11 +90,11 @@ async function sendDailySummaries() {
     if (engLog) points += 20 + Math.min(10, Math.floor((engLog.durationMinutes ?? 15) / 5))
 
     const allWater = await prisma.waterLog.findMany({ where: { userId: user.id }, select: { loggedAt: true } })
-    const days = new Set(allWater.map(l => l.loggedAt.toISOString().slice(0, 10)))
+    const days = new Set(allWater.map(l => toLocalDateStr(l.loggedAt)))
     let streak = 0
     for (let i = 0; i < 365; i++) {
       const d = new Date(now); d.setDate(d.getDate() - i)
-      if (days.has(d.toISOString().slice(0, 10))) streak++; else break
+      if (days.has(toLocalDateStr(d))) streak++; else break
     }
 
     const msg = buildDailySummaryMessage(user.name, {

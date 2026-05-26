@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify'
 import { prisma } from '../server'
-import { startOfDay, endOfDay } from '../utils/date'
+import { startOfDay, endOfDay, toLocalDateStr } from '../utils/date'
 
 export async function dashboardRoutes(app: FastifyInstance) {
   app.get('/:userId', async (req, reply) => {
@@ -112,14 +112,14 @@ async function calcStreak(userId: string): Promise<number> {
 
   if (logs.length === 0) return 0
 
-  const days = new Set(logs.map((l) => l.loggedAt.toISOString().slice(0, 10)))
+  const days = new Set(logs.map((l) => toLocalDateStr(l.loggedAt)))
   let streak = 0
   const today = new Date()
 
   for (let i = 0; i < 365; i++) {
     const d = new Date(today)
     d.setDate(d.getDate() - i)
-    const key = d.toISOString().slice(0, 10)
+    const key = toLocalDateStr(d)
     if (days.has(key)) streak++
     else break
   }
