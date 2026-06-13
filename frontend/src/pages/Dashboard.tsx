@@ -100,14 +100,18 @@ export function Dashboard({ userId }: Props) {
   const dayName = new Date().toLocaleDateString('pt-BR', { weekday: 'long' })
   const dateStr = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })
 
-  // 7-day streak dots — last 7 days labels + today indicator
+  // Week dots (Mon–Sun) with today indicator and streak highlight
+  const todayMid = new Date()
+  todayMid.setHours(0, 0, 0, 0)
+  const mondayOffset = (todayMid.getDay() + 6) % 7
   const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() - (6 - i))
+    const d = new Date(todayMid)
+    d.setDate(d.getDate() - mondayOffset + i)
+    const diffDays = Math.round((todayMid.getTime() - d.getTime()) / 86400000)
     return {
       label: d.toLocaleDateString('pt-BR', { weekday: 'narrow' }),
-      isToday: i === 6,
-      active: i >= 7 - gamification.streak,
+      isToday: diffDays === 0,
+      active: diffDays >= 0 && diffDays < gamification.streak,
     }
   })
 
