@@ -35,7 +35,8 @@ export function buildDailySummaryMessage(
     waterTotal: number
     waterGoal: number
     activityTotal: number
-    englishStudied: boolean
+    englishTotal: number
+    englishGoal: number
     readingTotal: number
     streak: number
     points: number
@@ -50,7 +51,7 @@ export function buildDailySummaryMessage(
     `💧 Água: ${data.waterTotal}ml / ${data.waterGoal}ml (${waterPercent}%)`,
     `🏃 Atividade: ${data.activityTotal} min`,
     `📚 Leitura: ${data.readingTotal} min`,
-    `🇺🇸 Inglês: ${data.englishStudied ? '✅ Estudou' : '❌ Não estudou'}`,
+    `🇺🇸 Inglês: ${data.englishTotal} min / ${data.englishGoal} min`,
     ``,
     `🔥 Sequência: ${data.streak} dia(s)`,
     `⭐ Pontos hoje: ${data.points}/100`,

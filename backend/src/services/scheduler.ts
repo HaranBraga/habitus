@@ -69,25 +69,27 @@ async function sendDailySummaries() {
   for (const user of users) {
     const dayStart = startOfDay(now)
     const dayEnd = endOfDay(now)
-    const [waterLogs, actLogs, readLogs, engLog] = await Promise.all([
+    const [waterLogs, actLogs, readLogs, engLogs] = await Promise.all([
       prisma.waterLog.findMany({ where: { userId: user.id, loggedAt: { gte: dayStart, lte: dayEnd } } }),
       prisma.activityLog.findMany({ where: { userId: user.id, loggedAt: { gte: dayStart, lte: dayEnd } } }),
       prisma.readingLog.findMany({ where: { userId: user.id, loggedAt: { gte: dayStart, lte: dayEnd } } }),
-      prisma.englishLog.findFirst({ where: { userId: user.id, loggedAt: { gte: dayStart, lte: dayEnd } } }),
+      prisma.englishLog.findMany({ where: { userId: user.id, loggedAt: { gte: dayStart, lte: dayEnd } } }),
     ])
 
     const waterGoal = user.settings?.waterGoalMl ?? 2000
     const actGoal = user.settings?.activityGoalMinutes ?? 30
     const readGoal = user.settings?.readingGoalMinutes ?? 20
+    const engGoal = user.settings?.englishGoalMinutes ?? 15
     const waterTotal = waterLogs.reduce((s, l) => s + l.amountMl, 0)
     const actTotal = actLogs.reduce((s, l) => s + l.durationMinutes, 0)
     const readTotal = readLogs.reduce((s, l) => s + l.durationMinutes, 0)
+    const engTotal = engLogs.reduce((s, l) => s + (l.durationMinutes ?? 0), 0)
 
     let points = 0
     points += Math.min(30, Math.round((waterTotal / waterGoal) * 30))
     points += Math.min(25, Math.round((actTotal / actGoal) * 25))
     points += Math.min(15, Math.round((readTotal / readGoal) * 15))
-    if (engLog) points += 20 + Math.min(10, Math.floor((engLog.durationMinutes ?? 15) / 5))
+    points += Math.min(30, Math.round((engTotal / engGoal) * 30))
 
     const allWater = await prisma.waterLog.findMany({ where: { userId: user.id }, select: { loggedAt: true } })
     const days = new Set(allWater.map(l => toLocalDateStr(l.loggedAt)))
@@ -98,7 +100,7 @@ async function sendDailySummaries() {
     }
 
     const msg = buildDailySummaryMessage(user.name, {
-      waterTotal, waterGoal, activityTotal: actTotal, englishStudied: !!engLog, readingTotal: readTotal, streak, points,
+      waterTotal, waterGoal, activityTotal: actTotal, englishTotal: engTotal, englishGoal: engGoal, readingTotal: readTotal, streak, points,
     })
     await sendWhatsApp(user.phone, msg)
     await sendPushToUser(user.id, '🌙 Resumo do dia', `${points} pts hoje · ${streak} dias de sequência`)

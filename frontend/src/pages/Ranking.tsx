@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getRankingDaily, getRankingMonthly, getDashboard, type RankingUser } from '../lib/api'
 import { ProgressBar } from '../components/ProgressBar'
 import { PageHeader } from '../components/PageHeader'
-import { Trophy, Flame, Star, Droplets, Dumbbell, BookOpen, Languages, Loader2, Calendar, Sun, X, ChevronRight, Check } from 'lucide-react'
+import { Trophy, Flame, Star, Droplets, Dumbbell, BookOpen, Languages, Loader2, Calendar, Sun, X, ChevronRight, ChevronLeft } from 'lucide-react'
 
 type Props = { userId: string }
 type Tab = 'daily' | 'monthly'
@@ -52,6 +52,16 @@ function UserActivityModal({ user, onClose }: { user: RankingUser; onClose: () =
       })),
       empty: 'Nenhuma leitura registrada hoje',
     },
+    {
+      icon: Languages, color: '#f59e0b', label: 'Inglês',
+      summary: `${data.today.english.total}min / ${data.today.english.goal}min`,
+      progress: Math.min(100, (data.today.english.total / data.today.english.goal) * 100),
+      items: data.today.english.logs.map(l => ({
+        main: `${l.durationMinutes}min`,
+        sub: fmt(l.loggedAt),
+      })),
+      empty: 'Nenhum estudo de inglês registrado hoje',
+    },
   ] : []
 
   return (
@@ -90,23 +100,6 @@ function UserActivityModal({ user, onClose }: { user: RankingUser; onClose: () =
             <X size={18} />
           </button>
         </div>
-
-        {/* English badge */}
-        {data && (
-          <div className="px-5 pb-3 flex-shrink-0">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
-              style={{ background: data.today.english.studied ? 'rgba(245,158,11,0.1)' : '#1c1c28', border: `1px solid ${data.today.english.studied ? 'rgba(245,158,11,0.2)' : '#2a2a3a'}` }}>
-              <Languages size={14} style={{ color: data.today.english.studied ? '#f59e0b' : '#4b5563' }} />
-              <span className="text-xs font-semibold" style={{ color: data.today.english.studied ? '#f59e0b' : '#4b5563' }}>
-                Inglês
-              </span>
-              {data.today.english.studied
-                ? <Check size={13} className="text-amber-400 ml-auto" />
-                : <span className="text-xs text-gray-600 ml-auto">Não registrado</span>
-              }
-            </div>
-          </div>
-        )}
 
         {/* Scrollable content */}
         <div className="overflow-y-auto flex-1 min-h-0 px-5 pb-6 space-y-4" style={{ WebkitOverflowScrolling: 'touch' }}>
@@ -159,7 +152,7 @@ function UserCard({ user, rank, isMe, mode, onClick }: { user: RankingUser; rank
     { icon: Droplets, value: user.today.water.total, goal: user.today.water.goal, color: '#3b82f6' },
     { icon: Dumbbell, value: user.today.activity.total, goal: user.today.activity.goal, color: '#10b981' },
     { icon: BookOpen, value: user.today.reading.total, goal: user.today.reading.goal, color: '#8b5cf6' },
-    { icon: Languages, value: user.today.english.studied ? 1 : 0, goal: 1, color: '#f59e0b' },
+    { icon: Languages, value: user.today.english.total, goal: user.today.english.goal, color: '#f59e0b' },
   ]
 
   return (
@@ -229,9 +222,67 @@ function UserCard({ user, rank, isMe, mode, onClick }: { user: RankingUser; rank
   )
 }
 
+const MONTH_LABELS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+
+function MonthDayBreakdown({ users }: { users: RankingUser[] }) {
+  const colors = ['#7c5cfc', '#ec4899', '#10b981', '#f59e0b']
+  const dayCount = users[0]?.days.length ?? 0
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-4 px-1">
+        {users.map((u, i) => (
+          <div key={u.userId} className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full" style={{ background: colors[i % colors.length] }} />
+            <span className="text-xs text-gray-500">{u.name}</span>
+          </div>
+        ))}
+      </div>
+      <div className="space-y-1.5">
+        {Array.from({ length: dayCount }, (_, i) => {
+          const date = users[0]?.days[i]?.date
+          const maxPts = Math.max(1, ...users.map(u => u.days[i]?.points ?? 0))
+          return (
+            <div key={date ?? i} className="rounded-xl p-2.5" style={{ background: '#1c1c28', border: '1px solid #2a2a3a' }}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-xs text-gray-600 font-medium w-8">
+                  {date ? new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit' }) : ''}
+                </span>
+                <span className="text-[10px] text-gray-700 capitalize">
+                  {date ? new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }) : ''}
+                </span>
+              </div>
+              <div className="space-y-1">
+                {users.map((u, ui) => {
+                  const pts = u.days[i]?.points ?? 0
+                  return (
+                    <div key={u.userId} className="flex items-center gap-2">
+                      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                        <div className="h-full rounded-full transition-all"
+                          style={{ width: `${Math.min(100, (pts / maxPts) * 100)}%`, background: colors[ui % colors.length] }} />
+                      </div>
+                      <span className="text-xs font-semibold text-white w-8 text-right">{pts}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export function RankingPage({ userId }: Props) {
   const [tab, setTab] = useState<Tab>('daily')
+  const [monthDate, setMonthDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+  const [dayView, setDayView] = useState(false)
   const [selectedUser, setSelectedUser] = useState<RankingUser | null>(null)
+
+  const now = new Date()
+  const isCurrentMonth = monthDate.getFullYear() === now.getFullYear() && monthDate.getMonth() === now.getMonth()
+  const monthParam = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`
 
   const { data: daily, isLoading: loadingDaily } = useQuery({
     queryKey: ['ranking', 'daily'],
@@ -239,9 +290,9 @@ export function RankingPage({ userId }: Props) {
     refetchInterval: 30_000,
   })
   const { data: monthly, isLoading: loadingMonthly } = useQuery({
-    queryKey: ['ranking', 'monthly'],
-    queryFn: getRankingMonthly,
-    refetchInterval: 60_000,
+    queryKey: ['ranking', 'monthly', monthParam],
+    queryFn: () => getRankingMonthly(monthParam),
+    refetchInterval: isCurrentMonth ? 60_000 : undefined,
   })
 
   const data = tab === 'daily' ? daily : monthly
@@ -258,13 +309,13 @@ export function RankingPage({ userId }: Props) {
         <UserActivityModal user={selectedUser} onClose={() => setSelectedUser(null)} />
       )}
 
-      <PageHeader title="Ranking" subtitle={tab === 'daily' ? 'Batalha de hoje' : `Mês de ${new Date().toLocaleDateString('pt-BR', { month: 'long' })}`}
+      <PageHeader title="Ranking" subtitle={tab === 'daily' ? 'Batalha de hoje' : `${MONTH_LABELS[monthDate.getMonth()]} de ${monthDate.getFullYear()}`}
         Icon={Trophy} iconColor="text-amber-400" />
 
       <div className="flex gap-2 p-1 rounded-2xl" style={{ background: '#1c1c28' }}>
         {[
           { key: 'daily' as Tab, label: 'Hoje', Icon: Sun },
-          { key: 'monthly' as Tab, label: 'Este Mês', Icon: Calendar },
+          { key: 'monthly' as Tab, label: 'Mensal', Icon: Calendar },
         ].map(({ key, label, Icon }) => (
           <button key={key} onClick={() => setTab(key)}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
@@ -275,8 +326,41 @@ export function RankingPage({ userId }: Props) {
         ))}
       </div>
 
+      {tab === 'monthly' && (
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: '#1c1c28' }}>
+            <button onClick={() => setMonthDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+              className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 transition-colors">
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-xs font-semibold text-white px-1.5 capitalize min-w-[90px] text-center">
+              {MONTH_LABELS[monthDate.getMonth()].slice(0, 3)}/{monthDate.getFullYear()}
+            </span>
+            <button onClick={() => setMonthDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+              disabled={isCurrentMonth}
+              className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-30">
+              <ChevronRight size={16} />
+            </button>
+          </div>
+          <div className="flex gap-1 p-1 rounded-xl" style={{ background: '#1c1c28' }}>
+            {[
+              { key: false, label: 'Mês' },
+              { key: true, label: 'Dia' },
+            ].map(({ key, label }) => (
+              <button key={label} onClick={() => setDayView(key)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={{ background: dayView === key ? 'rgba(124,92,252,0.2)' : 'transparent', color: dayView === key ? '#9d82fd' : '#6b7280' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex justify-center pt-8"><Loader2 className="animate-spin text-primary" size={28} /></div>
+      ) : tab === 'monthly' && dayView && data && data.length >= 1 ? (
+        <MonthDayBreakdown users={data} />
       ) : data && data.length >= 2 ? (
         <>
           <div className="rounded-2xl p-4 space-y-3" style={{ background: '#1c1c28', border: '1px solid #2a2a3a' }}>

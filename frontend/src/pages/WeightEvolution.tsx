@@ -184,15 +184,19 @@ export function WeightEvolutionPage({ userId }: Props) {
         {lastResult !== null && (
           <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
             style={{
-              background: lastResult.isOfficial ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${lastResult.isOfficial ? 'rgba(16,185,129,0.2)' : '#2a2a3a'}`,
+              background: !lastResult.isOfficial ? 'rgba(255,255,255,0.04)'
+                : lastResult.points >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+              border: `1px solid ${!lastResult.isOfficial ? '#2a2a3a'
+                : lastResult.points >= 0 ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`,
             }}>
-            {lastResult.isOfficial
-              ? <CheckCircle2 size={15} className="text-emerald-400 flex-shrink-0" />
-              : <Clock size={15} className="text-gray-600 flex-shrink-0" />}
+            {!lastResult.isOfficial
+              ? <Clock size={15} className="text-gray-600 flex-shrink-0" />
+              : lastResult.points >= 0
+                ? <CheckCircle2 size={15} className="text-emerald-400 flex-shrink-0" />
+                : <AlertCircle size={15} className="text-red-400 flex-shrink-0" />}
             <span className="text-xs text-white">
               {lastResult.isOfficial
-                ? `Peso oficial registrado! ${lastResult.reason} (+${lastResult.points}pts)`
+                ? `Peso oficial registrado! ${lastResult.reason} (${lastResult.points >= 0 ? '+' : ''}${lastResult.points}pts)`
                 : 'Registrado (não oficial — aguarda o próximo ciclo para pontuar)'}
             </span>
           </div>

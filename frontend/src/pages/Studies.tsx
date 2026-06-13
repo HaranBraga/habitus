@@ -3,13 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getDashboard, logReading, logEnglish } from '../lib/api'
 import { ProgressBar } from '../components/ProgressBar'
 import { PageHeader } from '../components/PageHeader'
-import { BookOpen, Languages, Plus, CheckCircle2, Circle, Loader2, Clock } from 'lucide-react'
+import { BookOpen, Languages, Plus, Loader2 } from 'lucide-react'
 
 type Props = { userId: string }
 type Tab = 'reading' | 'english'
 
 const READ_PRESETS = [10, 20, 30, 60]
-const ENG_PRESETS = [5, 15, 30, 60]
+const ENG_PRESETS = [10, 20, 30, 60]
 
 export function StudiesPage({ userId }: Props) {
   const qc = useQueryClient()
@@ -27,7 +27,7 @@ export function StudiesPage({ userId }: Props) {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['dashboard', userId] }); setReadMin('') },
   })
   const engMutation = useMutation({
-    mutationFn: (d: { studied: boolean; durationMinutes?: number }) => logEnglish(userId, d),
+    mutationFn: (m: number) => logEnglish(userId, m),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['dashboard', userId] }); setEngMin('') },
   })
 
@@ -41,9 +41,8 @@ export function StudiesPage({ userId }: Props) {
   const readGoal = data.settings.readingGoalMinutes
   const engGoal = data.settings.englishGoalMinutes
   const readPct = Math.min(100, Math.round((reading.total / readGoal) * 100))
-  const engPts = english.studied
-    ? 20 + Math.min(10, Math.floor((english.log?.durationMinutes ?? engGoal) / 5))
-    : 0
+  const engPct = Math.min(100, Math.round((english.total / engGoal) * 100))
+  const engPts = Math.min(30, Math.round((english.total / engGoal) * 30))
 
   const tabs = [
     { key: 'reading' as Tab, label: 'Leitura', Icon: BookOpen, accent: '#8b5cf6' },
@@ -102,64 +101,76 @@ export function StudiesPage({ userId }: Props) {
               <Plus size={18} className="text-white" />
             </button>
           </div>
+
+          {reading.logs.length > 0 && (
+            <div>
+              <p className="text-xs text-gray-600 uppercase tracking-wider mb-3 font-medium">Hoje</p>
+              <div className="space-y-2">
+                {[...reading.logs].reverse().map(log => (
+                  <div key={log.id} className="flex items-center justify-between px-4 py-3 rounded-xl"
+                    style={{ background: '#1c1c28', border: '1px solid #2a2a3a' }}>
+                    <span className="font-semibold text-white text-sm">{log.durationMinutes} min</span>
+                    <span className="text-xs text-gray-600">
+                      {new Date(log.loggedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {tab === 'english' && (
         <div className="space-y-4">
-          <div className="rounded-3xl p-6 flex flex-col items-center text-center space-y-4"
-            style={{ background: '#1c1c28', border: `1px solid ${english.studied ? '#f59e0b30' : '#2a2a3a'}` }}>
-            {english.studied ? (
-              <>
-                <CheckCircle2 size={48} className="text-amber-400" strokeWidth={1.5} />
-                <div>
-                  <p className="font-bold text-white text-lg">Inglês concluído!</p>
-                  <p className="text-amber-400 text-sm mt-0.5 font-semibold">+{engPts} pontos</p>
-                  {english.log?.durationMinutes && (
-                    <p className="text-gray-600 text-xs mt-1 flex items-center gap-1 justify-center">
-                      <Clock size={11} /> {english.log.durationMinutes} min estudados
-                    </p>
-                  )}
-                </div>
-              </>
-            ) : (
-              <>
-                <Circle size={48} className="text-gray-700" strokeWidth={1.5} />
-                <div>
-                  <p className="font-bold text-white">Estudou inglês hoje?</p>
-                  <p className="text-gray-500 text-sm mt-0.5">Vale 20+ pontos</p>
-                </div>
-              </>
-            )}
+          <div className="rounded-3xl p-5 text-center space-y-3"
+            style={{ background: '#1c1c28', border: '1px solid #f59e0b20' }}>
+            <div className="text-4xl font-black text-white">{english.total}
+              <span className="text-xl font-normal text-gray-500 ml-1">min</span>
+            </div>
+            <p className="text-xs text-gray-600">meta: {engGoal} min</p>
+            <ProgressBar value={english.total} max={engGoal} color="bg-amber-500" height="h-2" />
+            <p className="text-sm font-semibold text-amber-400">{engPct}% — {engPts} pts</p>
           </div>
 
-          {!english.studied && (
-            <>
-              <div className="grid grid-cols-4 gap-2">
-                {ENG_PRESETS.map(m => (
-                  <button key={m} onClick={() => engMutation.mutate({ studied: true, durationMinutes: m })}
-                    className="py-3 rounded-xl text-sm font-bold transition-all active:scale-95"
-                    style={{ background: '#242434', color: '#f59e0b', border: '1px solid #f59e0b20' }}>
-                    {m}min
-                  </button>
+          <div className="grid grid-cols-4 gap-2">
+            {ENG_PRESETS.map(m => (
+              <button key={m} onClick={() => engMutation.mutate(m)}
+                className="py-3 rounded-xl text-sm font-bold transition-all active:scale-95"
+                style={{ background: '#242434', color: '#f59e0b', border: '1px solid #f59e0b20' }}>
+                +{m}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2">
+            <input type="number" placeholder="Personalizado (min)" value={engMin}
+              onChange={e => setEngMin(e.target.value)} min={1}
+              className="flex-1 px-3 py-2.5 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+              style={{ background: '#242434', border: '1px solid #2a2a3a' }} />
+            <button onClick={() => { const m = parseInt(engMin); if (m >= 1) engMutation.mutate(m) }}
+              disabled={!engMin || engMutation.isPending}
+              className="px-4 rounded-xl flex items-center justify-center disabled:opacity-50 transition-all active:scale-95"
+              style={{ background: '#f59e0b' }}>
+              <Plus size={18} className="text-black" />
+            </button>
+          </div>
+
+          {english.logs.length > 0 && (
+            <div>
+              <p className="text-xs text-gray-600 uppercase tracking-wider mb-3 font-medium">Hoje</p>
+              <div className="space-y-2">
+                {[...english.logs].reverse().map(log => (
+                  <div key={log.id} className="flex items-center justify-between px-4 py-3 rounded-xl"
+                    style={{ background: '#1c1c28', border: '1px solid #2a2a3a' }}>
+                    <span className="font-semibold text-white text-sm">{log.durationMinutes} min</span>
+                    <span className="text-xs text-gray-600">
+                      {new Date(log.loggedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
                 ))}
               </div>
-
-              <div className="flex gap-2">
-                <input type="number" placeholder="Minutos (opcional)" value={engMin}
-                  onChange={e => setEngMin(e.target.value)} min={1}
-                  className="flex-1 px-3 py-2.5 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  style={{ background: '#242434', border: '1px solid #2a2a3a' }} />
-                <button
-                  onClick={() => engMutation.mutate({ studied: true, durationMinutes: parseInt(engMin) || undefined })}
-                  disabled={engMutation.isPending}
-                  className="px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 disabled:opacity-50 transition-all active:scale-95"
-                  style={{ background: '#f59e0b', color: '#000' }}>
-                  {engMutation.isPending ? <Loader2 size={15} className="animate-spin" /> : null}
-                  Marcar feito
-                </button>
-              </div>
-            </>
+            </div>
           )}
         </div>
       )}

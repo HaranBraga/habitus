@@ -16,7 +16,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
     const dayStart = startOfDay(now)
     const dayEnd = endOfDay(now)
 
-    const [waterLogs, activityLogs, readingLogs, englishLog, latestWeight] = await Promise.all([
+    const [waterLogs, activityLogs, readingLogs, englishLogs, latestWeight] = await Promise.all([
       prisma.waterLog.findMany({
         where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } },
         orderBy: { loggedAt: 'asc' },
@@ -27,8 +27,9 @@ export async function dashboardRoutes(app: FastifyInstance) {
       prisma.readingLog.findMany({
         where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } },
       }),
-      prisma.englishLog.findFirst({
+      prisma.englishLog.findMany({
         where: { userId, loggedAt: { gte: dayStart, lte: dayEnd } },
+        orderBy: { loggedAt: 'asc' },
       }),
       prisma.weightLog.findFirst({
         where: { userId },
@@ -40,12 +41,14 @@ export async function dashboardRoutes(app: FastifyInstance) {
       waterGoalMl: 2000,
       activityGoalMinutes: 30,
       readingGoalMinutes: 20,
+      englishGoalMinutes: 15,
       weightCheckIntervalDays: 7,
     }
 
     const waterTotal = waterLogs.reduce((s, l) => s + l.amountMl, 0)
     const activityTotal = activityLogs.reduce((s, l) => s + l.durationMinutes, 0)
     const readingTotal = readingLogs.reduce((s, l) => s + l.durationMinutes, 0)
+    const englishTotal = englishLogs.reduce((s, l) => s + (l.durationMinutes ?? 0), 0)
 
     const daysAgoWeight = latestWeight
       ? Math.floor((Date.now() - latestWeight.loggedAt.getTime()) / 86400000)
@@ -60,7 +63,8 @@ export async function dashboardRoutes(app: FastifyInstance) {
       activityGoal: settings.activityGoalMinutes,
       readingTotal,
       readingGoal: settings.readingGoalMinutes,
-      englishStudied: !!englishLog,
+      englishTotal,
+      englishGoal: settings.englishGoalMinutes,
     })
 
     return {
@@ -70,7 +74,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
         water: { total: waterTotal, goal: settings.waterGoalMl, logs: waterLogs },
         activity: { total: activityTotal, goal: settings.activityGoalMinutes, logs: activityLogs },
         reading: { total: readingTotal, goal: settings.readingGoalMinutes, logs: readingLogs },
-        english: { studied: !!englishLog, log: englishLog },
+        english: { total: englishTotal, goal: settings.englishGoalMinutes, logs: englishLogs },
       },
       weight: {
         latest: latestWeight?.weight ?? null,
@@ -90,16 +94,14 @@ function calcPoints(data: {
   activityGoal: number
   readingTotal: number
   readingGoal: number
-  englishStudied: boolean
+  englishTotal: number
+  englishGoal: number
 }) {
   let pts = 0
-  if (data.waterTotal >= data.waterGoal) pts += 30
-  else if (data.waterTotal > 0) pts += Math.floor((data.waterTotal / data.waterGoal) * 20)
-  if (data.activityTotal >= data.activityGoal) pts += 25
-  else if (data.activityTotal > 0) pts += Math.floor((data.activityTotal / data.activityGoal) * 15)
-  if (data.readingTotal >= data.readingGoal) pts += 25
-  else if (data.readingTotal > 0) pts += Math.floor((data.readingTotal / data.readingGoal) * 15)
-  if (data.englishStudied) pts += 20
+  pts += Math.min(30, Math.round((data.waterTotal / Math.max(data.waterGoal, 1)) * 30))
+  pts += Math.min(25, Math.round((data.activityTotal / Math.max(data.activityGoal, 1)) * 25))
+  pts += Math.min(15, Math.round((data.readingTotal / Math.max(data.readingGoal, 1)) * 15))
+  pts += Math.min(30, Math.round((data.englishTotal / Math.max(data.englishGoal, 1)) * 30))
   return pts
 }
 

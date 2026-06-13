@@ -7,7 +7,7 @@ function calcPoints(data: {
   waterTotal: number; waterGoal: number
   activityTotal: number; activityGoal: number
   readingTotal: number; readingGoal: number
-  englishMinutes: number
+  englishTotal: number; englishGoal: number
   officialWeightPoints: number
   groupTaskPoints: number
 }): number {
@@ -15,7 +15,7 @@ function calcPoints(data: {
   pts += Math.min(30, Math.round((data.waterTotal / Math.max(data.waterGoal, 1)) * 30))
   pts += Math.min(25, Math.round((data.activityTotal / Math.max(data.activityGoal, 1)) * 25))
   pts += Math.min(15, Math.round((data.readingTotal / Math.max(data.readingGoal, 1)) * 15))
-  if (data.englishMinutes > 0) pts += 20 + Math.min(10, Math.floor(data.englishMinutes / 5))
+  pts += Math.min(30, Math.round((data.englishTotal / Math.max(data.englishGoal, 1)) * 30))
   pts += data.officialWeightPoints
   pts += data.groupTaskPoints
   return pts
@@ -37,8 +37,7 @@ async function calcStreak(userId: string): Promise<number> {
   return streak
 }
 
-
-async function getUserFullStats(userId: string) {
+async function getUserFullStats(userId: string, refDate: Date = new Date()) {
   const user = await prisma.user.findUnique({ where: { id: userId }, include: { settings: true } })
   if (!user) return null
 
@@ -51,16 +50,18 @@ async function getUserFullStats(userId: string) {
   }
 
   const now = new Date()
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+  const monthStart = new Date(refDate.getFullYear(), refDate.getMonth(), 1)
+  const monthEnd = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 0, 23, 59, 59, 999)
+  const isCurrentMonth = refDate.getFullYear() === now.getFullYear() && refDate.getMonth() === now.getMonth()
+  const lastDay = isCurrentMonth ? now.getDate() : monthEnd.getDate()
 
-  // Batch-load ALL month data in 7 queries instead of 7 × N days
-  const [mWater, mAct, mRead, mEng, mWeight, mTaskLogs, mGroupTasks] = await Promise.all([
+  // Batch-load ALL month data in a handful of queries instead of N × days
+  const [mWater, mAct, mRead, mEng, allOfficialWeights, mTaskLogs, mGroupTasks] = await Promise.all([
     prisma.waterLog.findMany({ where: { userId, loggedAt: { gte: monthStart, lte: monthEnd } } }),
     prisma.activityLog.findMany({ where: { userId, loggedAt: { gte: monthStart, lte: monthEnd } } }),
     prisma.readingLog.findMany({ where: { userId, loggedAt: { gte: monthStart, lte: monthEnd } } }),
     prisma.englishLog.findMany({ where: { userId, loggedAt: { gte: monthStart, lte: monthEnd } } }),
-    prisma.weightLog.findMany({ where: { userId, isOfficial: true, loggedAt: { gte: monthStart, lte: monthEnd } } }),
+    prisma.weightLog.findMany({ where: { userId, isOfficial: true }, orderBy: { loggedAt: 'asc' } }),
     prisma.groupTaskLog.findMany({ where: { userId, loggedAt: { gte: monthStart, lte: monthEnd } } }),
     prisma.groupTask.findMany({ where: { active: true } }),
   ])
@@ -74,46 +75,49 @@ async function getUserFullStats(userId: string) {
   const readByDay = new Map<string, number>()
   mRead.forEach(l => { const k = dayKey(l.loggedAt); readByDay.set(k, (readByDay.get(k) ?? 0) + l.durationMinutes) })
   const engByDay = new Map<string, number>()
-  mEng.forEach(l => { const k = dayKey(l.loggedAt); engByDay.set(k, (engByDay.get(k) ?? 0) + (l.durationMinutes ?? settings.englishGoalMinutes)) })
-  const weightByDay = new Map<string, boolean>()
-  mWeight.forEach(l => weightByDay.set(dayKey(l.loggedAt), true))
+  mEng.forEach(l => { const k = dayKey(l.loggedAt); engByDay.set(k, (engByDay.get(k) ?? 0) + (l.durationMinutes ?? 0)) })
   const taskCompletedByDay = new Map<string, Set<string>>()
   mTaskLogs.forEach(l => { const k = dayKey(l.loggedAt); if (!taskCompletedByDay.has(k)) taskCompletedByDay.set(k, new Set()); taskCompletedByDay.get(k)!.add(l.taskId) })
 
-  // Sum points across all days this month
-  const activeDays = new Set([
-    ...waterByDay.keys(), ...actByDay.keys(), ...readByDay.keys(),
-    ...engByDay.keys(), ...weightByDay.keys(), ...taskCompletedByDay.keys(),
-  ])
-
-  let monthlyPoints = 0
-  for (const k of activeDays) {
-    const taskPts = [...(taskCompletedByDay.get(k) ?? [])].reduce((s, tid) => {
-      return s + (mGroupTasks.find(t => t.id === tid)?.pointValue ?? 0)
-    }, 0)
-    monthlyPoints += calcPoints({
-      waterTotal: waterByDay.get(k) ?? 0, waterGoal: settings.waterGoalMl,
-      activityTotal: actByDay.get(k) ?? 0, activityGoal: settings.activityGoalMinutes,
-      readingTotal: readByDay.get(k) ?? 0, readingGoal: settings.readingGoalMinutes,
-      englishMinutes: engByDay.get(k) ?? 0,
-      officialWeightPoints: weightByDay.has(k) ? 15 : 0,
-      groupTaskPoints: taskPts,
-    })
+  // Weight points: each official weigh-in gains/loses points based on movement toward the target weight
+  const weightGoal = calcWeightGoal(user.height)
+  const targetWeight = user.settings?.weightGoalKg ?? weightGoal.ideal
+  const weightPointsByDay = new Map<string, number>()
+  let prevOfficial: number | null = null
+  for (const w of allOfficialWeights) {
+    const { points } = calcWeightPoints(w.weight, prevOfficial, targetWeight)
+    const k = dayKey(w.loggedAt)
+    weightPointsByDay.set(k, (weightPointsByDay.get(k) ?? 0) + points)
+    prevOfficial = w.weight
   }
 
-  // Today's points (subset of above, use same batch data)
-  const todayKey = dayKey(now)
-  const todayTaskPts = [...(taskCompletedByDay.get(todayKey) ?? [])].reduce((s, tid) => {
+  const taskPointsForDay = (k: string) => [...(taskCompletedByDay.get(k) ?? [])].reduce((s, tid) => {
     return s + (mGroupTasks.find(t => t.id === tid)?.pointValue ?? 0)
   }, 0)
-  const todayPoints = calcPoints({
-    waterTotal: waterByDay.get(todayKey) ?? 0, waterGoal: settings.waterGoalMl,
-    activityTotal: actByDay.get(todayKey) ?? 0, activityGoal: settings.activityGoalMinutes,
-    readingTotal: readByDay.get(todayKey) ?? 0, readingGoal: settings.readingGoalMinutes,
-    englishMinutes: engByDay.get(todayKey) ?? 0,
-    officialWeightPoints: weightByDay.has(todayKey) ? 15 : 0,
-    groupTaskPoints: todayTaskPts,
+
+  const pointsForDay = (k: string) => calcPoints({
+    waterTotal: waterByDay.get(k) ?? 0, waterGoal: settings.waterGoalMl,
+    activityTotal: actByDay.get(k) ?? 0, activityGoal: settings.activityGoalMinutes,
+    readingTotal: readByDay.get(k) ?? 0, readingGoal: settings.readingGoalMinutes,
+    englishTotal: engByDay.get(k) ?? 0, englishGoal: settings.englishGoalMinutes,
+    officialWeightPoints: weightPointsByDay.get(k) ?? 0,
+    groupTaskPoints: taskPointsForDay(k),
   })
+
+  // Per-day breakdown for the selected month (1..lastDay)
+  const days: { date: string; points: number }[] = []
+  let monthlyPoints = 0
+  for (let d = 1; d <= lastDay; d++) {
+    const dateObj = new Date(refDate.getFullYear(), refDate.getMonth(), d)
+    const k = dayKey(dateObj)
+    const pts = pointsForDay(k)
+    days.push({ date: k, points: pts })
+    monthlyPoints += pts
+  }
+
+  // Selected day's points (refDate)
+  const todayKey = dayKey(refDate)
+  const todayPoints = pointsForDay(todayKey)
 
   const [streak, latestWeight] = await Promise.all([
     calcStreak(userId),
@@ -127,18 +131,26 @@ async function getUserFullStats(userId: string) {
 
   return {
     userId, name: user.name, isAdmin: user.isAdmin,
-    todayPoints, monthlyPoints, streak,
+    todayPoints, monthlyPoints, streak, days,
     level, levelName: levelNames[level], totalPoints,
     today: {
       water: { total: waterByDay.get(todayKey) ?? 0, goal: settings.waterGoalMl },
       activity: { total: actByDay.get(todayKey) ?? 0, goal: settings.activityGoalMinutes },
       reading: { total: readByDay.get(todayKey) ?? 0, goal: settings.readingGoalMinutes },
-      english: { studied: (engByDay.get(todayKey) ?? 0) > 0 },
+      english: { total: engByDay.get(todayKey) ?? 0, goal: settings.englishGoalMinutes },
       groupTasksCompleted: taskCompletedByDay.get(todayKey)?.size ?? 0,
       groupTasksTotal: mGroupTasks.length,
     },
     latestWeight: latestWeight?.weight ?? null,
   }
+}
+
+function parseMonthParam(month: unknown): Date {
+  if (typeof month === 'string' && /^\d{4}-\d{2}$/.test(month)) {
+    const [year, mon] = month.split('-').map(Number)
+    return new Date(year, mon - 1, 1)
+  }
+  return new Date()
 }
 
 export async function rankingRoutes(app: FastifyInstance) {
@@ -154,9 +166,11 @@ export async function rankingRoutes(app: FastifyInstance) {
     return stats.filter(Boolean).sort((a, b) => b!.todayPoints - a!.todayPoints)
   })
 
-  app.get('/monthly', async () => {
+  app.get('/monthly', async (req) => {
+    const { month } = req.query as { month?: string }
+    const refDate = parseMonthParam(month)
     const users = await prisma.user.findMany({ select: { id: true } })
-    const stats = await Promise.all(users.map(u => getUserFullStats(u.id)))
+    const stats = await Promise.all(users.map(u => getUserFullStats(u.id, refDate)))
     return stats.filter(Boolean).sort((a, b) => b!.monthlyPoints - a!.monthlyPoints)
   })
 
@@ -165,5 +179,31 @@ export async function rankingRoutes(app: FastifyInstance) {
     const stats = await getUserFullStats(userId)
     if (!stats) return reply.status(404).send({ error: 'Usuário não encontrado' })
     return stats
+  })
+
+  app.get('/:userId/evolution', async (req, reply) => {
+    const { userId } = req.params as { userId: string }
+    const { months } = req.query as { months?: string }
+    const count = Math.min(12, Math.max(1, Number(months) || 6))
+
+    const now = new Date()
+    const results = []
+    for (let i = count - 1; i >= 0; i--) {
+      const refDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const stats = await getUserFullStats(userId, refDate)
+      if (!stats) return reply.status(404).send({ error: 'Usuário não encontrado' })
+      results.push({
+        month: `${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, '0')}`,
+        monthlyPoints: stats.monthlyPoints,
+        days: stats.days,
+      })
+    }
+
+    const weightHistory = await prisma.weightLog.findMany({
+      where: { userId, isOfficial: true },
+      orderBy: { loggedAt: 'asc' },
+    })
+
+    return { months: results, weightHistory }
   })
 }

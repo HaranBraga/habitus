@@ -121,9 +121,9 @@ export function Dashboard({ userId }: Props) {
     { to: '/studies', label: 'Leitura', value: `${today.reading.total}min`, goal: settings.readingGoalMinutes,
       current: today.reading.total, Icon: BookOpen, accent: '#8b5cf6', barColor: 'bg-violet-500',
       pct: Math.min(100, Math.round((today.reading.total / settings.readingGoalMinutes) * 100)) },
-    { to: '/studies', label: 'Inglês', value: today.english.studied ? 'Feito' : 'Pendente',
-      goal: 1, current: today.english.studied ? 1 : 0, Icon: Languages, accent: '#f59e0b', barColor: 'bg-amber-500',
-      pct: today.english.studied ? 100 : 0 },
+    { to: '/studies', label: 'Inglês', value: `${today.english.total}min`, goal: today.english.goal,
+      current: today.english.total, Icon: Languages, accent: '#f59e0b', barColor: 'bg-amber-500',
+      pct: Math.min(100, Math.round((today.english.total / today.english.goal) * 100)) },
   ]
 
   // Mini ranking data
@@ -189,7 +189,7 @@ export function Dashboard({ userId }: Props) {
               {card.pct >= 100 && <TrendingUp size={12} style={{ color: card.accent }} />}
             </div>
             <p className="font-bold text-white text-base leading-tight">{card.value}</p>
-            <p className="text-xs text-gray-600 mb-2">/ {card.goal}{card.label === 'Água' ? 'ml' : card.label === 'Inglês' ? '' : 'min'}</p>
+            <p className="text-xs text-gray-600 mb-2">/ {card.goal}{card.label === 'Água' ? 'ml' : 'min'}</p>
             <ProgressBar value={card.pct} max={100} color={card.barColor} height="h-1" />
           </button>
         ))}

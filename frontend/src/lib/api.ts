@@ -21,7 +21,7 @@ export type DashboardData = {
     water: { total: number; goal: number; logs: { id: string; amountMl: number; loggedAt: string }[] }
     activity: { total: number; goal: number; logs: { id: string; durationMinutes: number; description?: string; loggedAt: string }[] }
     reading: { total: number; goal: number; logs: { id: string; durationMinutes: number; loggedAt: string }[] }
-    english: { studied: boolean; log: { id: string; durationMinutes?: number } | null }
+    english: { total: number; goal: number; logs: { id: string; durationMinutes: number; loggedAt: string }[] }
   }
   weight: { latest: number | null; loggedAt: string | null; due: boolean; daysAgo: number | null }
   gamification: { streak: number; points: number }
@@ -40,15 +40,20 @@ export type WeightStatus = {
 export type RankingUser = {
   userId: string; name: string; isAdmin: boolean
   todayPoints: number; monthlyPoints: number; streak: number
+  days: { date: string; points: number }[]
   level: number; levelName: string; totalPoints: number
   today: {
     water: { total: number; goal: number }
     activity: { total: number; goal: number }
     reading: { total: number; goal: number }
-    english: { studied: boolean }
+    english: { total: number; goal: number }
     groupTasksCompleted: number; groupTasksTotal: number
   }
   latestWeight: number | null
+}
+export type EvolutionData = {
+  months: { month: string; monthlyPoints: number; days: { date: string; points: number }[] }[]
+  weightHistory: { id: string; weight: number; isOfficial: boolean; loggedAt: string }[]
 }
 export type GroupTask = {
   id: string; title: string; description?: string
@@ -92,8 +97,8 @@ export const logReading = (userId: string, durationMinutes: number) =>
   api.post(`/reading/${userId}`, { durationMinutes }).then(r => r.data)
 
 // English
-export const logEnglish = (userId: string, d: { studied: boolean; durationMinutes?: number }) =>
-  api.post(`/english/${userId}`, d).then(r => r.data)
+export const logEnglish = (userId: string, durationMinutes: number) =>
+  api.post(`/english/${userId}`, { durationMinutes }).then(r => r.data)
 
 // Settings
 export const updateSettings = (userId: string, d: Partial<UserSettings>) =>
@@ -113,7 +118,10 @@ export const deleteGroupTask = (taskId: string, adminId: string) =>
 
 // Ranking
 export const getRankingDaily = () => api.get<RankingUser[]>('/ranking/daily').then(r => r.data)
-export const getRankingMonthly = () => api.get<RankingUser[]>('/ranking/monthly').then(r => r.data)
+export const getRankingMonthly = (month?: string) =>
+  api.get<RankingUser[]>('/ranking/monthly', { params: month ? { month } : undefined }).then(r => r.data)
+export const getEvolution = (userId: string, months = 6) =>
+  api.get<EvolutionData>(`/ranking/${userId}/evolution`, { params: { months } }).then(r => r.data)
 
 // Analysis
 export const getAnalysis = (userId: string) =>

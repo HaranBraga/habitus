@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Scale, TrendingUp, CheckSquare, Settings, BrainCircuit, LogOut, ChevronRight } from 'lucide-react'
+import { Scale, TrendingUp, CheckSquare, Settings, BrainCircuit, LogOut, ChevronRight, BarChart3 } from 'lucide-react'
 
 type Props = { userId: string; onLogout: () => void }
 
@@ -7,6 +7,7 @@ export function MorePage({ onLogout }: Props) {
   const navigate = useNavigate()
 
   const items = [
+    { icon: BarChart3, label: 'Visão Geral', sub: 'Evolução de cada usuário', to: '/overview', color: '#7c5cfc' },
     { icon: TrendingUp, label: 'Evolução do Peso', sub: 'Histórico oficial e pontuação', to: '/weight-evolution', color: '#ec4899' },
     { icon: Scale, label: 'Registrar Peso', sub: 'Registro rápido', to: '/weight', color: '#f472b6' },
     { icon: CheckSquare, label: 'Tarefas do Grupo', sub: 'Hábitos em comum', to: '/tasks', color: '#7c5cfc' },

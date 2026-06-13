@@ -18,39 +18,39 @@ export function calcWeightGoal(heightCm: number): { min: number; ideal: number; 
   }
 }
 
-// Points for an official weight based on evolution toward ideal
+// Points for an official weight based on evolution toward the target (personal goal or BMI ideal).
+// Moving closer to the target gains points, moving away loses points (can go negative).
 export function calcWeightPoints(
   currentWeight: number,
   previousOfficialWeight: number | null,
-  idealWeight: number
+  targetWeight: number
 ): { points: number; reason: string } {
-  // Base points for logging on time
-  let points = 15
-  let reason = 'Peso oficial registrado'
+  const basePoints = 15
 
   if (previousOfficialWeight === null) {
-    return { points, reason: 'Primeiro registro oficial' }
+    return { points: basePoints, reason: 'Primeiro registro oficial' }
   }
 
-  const prevDistToIdeal = Math.abs(previousOfficialWeight - idealWeight)
-  const currDistToIdeal = Math.abs(currentWeight - idealWeight)
-  const improvement = prevDistToIdeal - currDistToIdeal
+  const prevDistToTarget = Math.abs(previousOfficialWeight - targetWeight)
+  const currDistToTarget = Math.abs(currentWeight - targetWeight)
+  const improvement = prevDistToTarget - currDistToTarget
 
   if (improvement > 0.2) {
-    // Moving toward ideal — bonus based on improvement
+    // Moving toward the goal — bonus based on improvement
     const bonus = Math.min(20, Math.round(improvement * 10))
-    points += bonus
-    reason = `Evoluindo para o ideal (+${bonus}pts bônus)`
-  } else if (Math.abs(currentWeight - previousOfficialWeight) <= 0.3) {
+    return { points: basePoints + bonus, reason: `Aproximando da meta (+${bonus}pts bônus)` }
+  }
+  if (Math.abs(currentWeight - previousOfficialWeight) <= 0.3) {
     // Maintaining
-    points += 5
-    reason = 'Mantendo o peso (+5pts bônus)'
-  } else if (improvement < -0.2) {
-    // Moving away from ideal
-    reason = 'Afastando do ideal (sem bônus)'
+    return { points: basePoints + 5, reason: 'Mantendo o peso (+5pts bônus)' }
+  }
+  if (improvement < -0.2) {
+    // Moving away from the goal — lose points
+    const penalty = Math.min(20, Math.round(-improvement * 10))
+    return { points: basePoints - penalty, reason: `Afastando da meta (-${penalty}pts)` }
   }
 
-  return { points, reason }
+  return { points: basePoints, reason: 'Peso oficial registrado' }
 }
 
 export async function weightRoutes(app: FastifyInstance) {
@@ -94,8 +94,9 @@ export async function weightRoutes(app: FastifyInstance) {
     })
 
     const goal = calcWeightGoal(user.height)
+    const target = settings?.weightGoalKg ?? goal.ideal
     const weightPts = isOfficial
-      ? calcWeightPoints(weight, lastOfficial?.weight ?? null, goal.ideal)
+      ? calcWeightPoints(weight, lastOfficial?.weight ?? null, target)
       : null
 
     return reply.status(201).send({
