@@ -14,7 +14,7 @@ export async function activityRoutes(app: FastifyInstance) {
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() })
 
     const log = await prisma.activityLog.create({
-      data: { userId, ...parsed.data },
+      data: { userId, ...parsed.data, loggedAt: new Date() },
     })
     return reply.status(201).send(log)
   })

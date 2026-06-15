@@ -11,7 +11,7 @@ export async function englishRoutes(app: FastifyInstance) {
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() })
 
     const log = await prisma.englishLog.create({
-      data: { userId, studied: true, durationMinutes: parsed.data.durationMinutes },
+      data: { userId, studied: true, durationMinutes: parsed.data.durationMinutes, loggedAt: new Date() },
     })
     return reply.status(201).send(log)
   })

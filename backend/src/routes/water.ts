@@ -11,7 +11,7 @@ export async function waterRoutes(app: FastifyInstance) {
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() })
 
     const log = await prisma.waterLog.create({
-      data: { userId, amountMl: parsed.data.amountMl },
+      data: { userId, amountMl: parsed.data.amountMl, loggedAt: new Date() },
     })
     return reply.status(201).send(log)
   })

@@ -90,7 +90,7 @@ export async function weightRoutes(app: FastifyInstance) {
     })
 
     const log = await prisma.weightLog.create({
-      data: { userId, weight, isOfficial },
+      data: { userId, weight, isOfficial, loggedAt: new Date() },
     })
 
     const goal = calcWeightGoal(user.height)

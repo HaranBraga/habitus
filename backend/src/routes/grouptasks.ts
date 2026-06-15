@@ -91,7 +91,7 @@ export async function groupTasksRoutes(app: FastifyInstance) {
     if (existing) return reply.status(409).send({ error: 'Já concluída hoje' })
 
     return reply.status(201).send(
-      await prisma.groupTaskLog.create({ data: { taskId, userId } })
+      await prisma.groupTaskLog.create({ data: { taskId, userId, loggedAt: new Date() } })
     )
   })
 }
