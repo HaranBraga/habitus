@@ -37,7 +37,9 @@ async function calcStreak(userId: string): Promise<number> {
   return streak
 }
 
-async function getUserFullStats(userId: string, refDate: Date = new Date()) {
+const pad2 = (n: number) => String(n).padStart(2, '0')
+
+async function getUserFullStats(userId: string, target?: { year: number; month: number }) {
   const user = await prisma.user.findUnique({ where: { id: userId }, include: { settings: true } })
   if (!user) return null
 
@@ -49,11 +51,15 @@ async function getUserFullStats(userId: string, refDate: Date = new Date()) {
     weightCheckIntervalDays: user.settings?.weightCheckIntervalDays ?? 7,
   }
 
-  const now = new Date()
-  const monthStart = new Date(refDate.getFullYear(), refDate.getMonth(), 1)
-  const monthEnd = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 0, 23, 59, 59, 999)
-  const isCurrentMonth = refDate.getFullYear() === now.getFullYear() && refDate.getMonth() === now.getMonth()
-  const lastDay = isCurrentMonth ? now.getDate() : monthEnd.getDate()
+  // All date logic below is anchored to the Acre (UTC-5) calendar, independent of the
+  // server process's own timezone — avoids off-by-one day shifts in month/day boundaries
+  const [nowYear, nowMonth, nowDay] = toLocalDateStr(new Date()).split('-').map(Number)
+  const { year, month } = target ?? { year: nowYear, month: nowMonth }
+  const monthStart = new Date(`${year}-${pad2(month)}-01T00:00:00-05:00`)
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const monthEnd = new Date(`${year}-${pad2(month)}-${pad2(daysInMonth)}T23:59:59.999-05:00`)
+  const isCurrentMonth = year === nowYear && month === nowMonth
+  const lastDay = isCurrentMonth ? nowDay : daysInMonth
 
   // Batch-load ALL month data in a handful of queries instead of N × days
   const [mWater, mAct, mRead, mEng, allOfficialWeights, mTaskLogs, mGroupTasks] = await Promise.all([
@@ -108,15 +114,14 @@ async function getUserFullStats(userId: string, refDate: Date = new Date()) {
   const days: { date: string; points: number }[] = []
   let monthlyPoints = 0
   for (let d = 1; d <= lastDay; d++) {
-    const dateObj = new Date(refDate.getFullYear(), refDate.getMonth(), d)
-    const k = dayKey(dateObj)
+    const k = `${year}-${pad2(month)}-${pad2(d)}`
     const pts = pointsForDay(k)
     days.push({ date: k, points: pts })
     monthlyPoints += pts
   }
 
-  // Selected day's points (refDate)
-  const todayKey = dayKey(refDate)
+  // Today's points (Acre calendar "today", or 1st of month for past months)
+  const todayKey = isCurrentMonth ? toLocalDateStr(new Date()) : `${year}-${pad2(month)}-01`
   const todayPoints = pointsForDay(todayKey)
 
   const [streak, latestWeight] = await Promise.all([
@@ -145,12 +150,13 @@ async function getUserFullStats(userId: string, refDate: Date = new Date()) {
   }
 }
 
-function parseMonthParam(month: unknown): Date {
+function parseMonthParam(month: unknown): { year: number; month: number } {
   if (typeof month === 'string' && /^\d{4}-\d{2}$/.test(month)) {
     const [year, mon] = month.split('-').map(Number)
-    return new Date(year, mon - 1, 1)
+    return { year, month: mon }
   }
-  return new Date()
+  const [year, mon] = toLocalDateStr(new Date()).split('-').map(Number)
+  return { year, month: mon }
 }
 
 export async function rankingRoutes(app: FastifyInstance) {
@@ -168,9 +174,9 @@ export async function rankingRoutes(app: FastifyInstance) {
 
   app.get('/monthly', async (req) => {
     const { month } = req.query as { month?: string }
-    const refDate = parseMonthParam(month)
+    const target = parseMonthParam(month)
     const users = await prisma.user.findMany({ select: { id: true } })
-    const stats = await Promise.all(users.map(u => getUserFullStats(u.id, refDate)))
+    const stats = await Promise.all(users.map(u => getUserFullStats(u.id, target)))
     return stats.filter(Boolean).sort((a, b) => b!.monthlyPoints - a!.monthlyPoints)
   })
 
@@ -186,14 +192,16 @@ export async function rankingRoutes(app: FastifyInstance) {
     const { months } = req.query as { months?: string }
     const count = Math.min(12, Math.max(1, Number(months) || 6))
 
-    const now = new Date()
+    const [nowYear, nowMonth] = toLocalDateStr(new Date()).split('-').map(Number)
     const results = []
     for (let i = count - 1; i >= 0; i--) {
-      const refDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const stats = await getUserFullStats(userId, refDate)
+      let m = nowMonth - i
+      let y = nowYear
+      while (m <= 0) { m += 12; y -= 1 }
+      const stats = await getUserFullStats(userId, { year: y, month: m })
       if (!stats) return reply.status(404).send({ error: 'Usuário não encontrado' })
       results.push({
-        month: `${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, '0')}`,
+        month: `${y}-${pad2(m)}`,
         monthlyPoints: stats.monthlyPoints,
         days: stats.days,
       })
