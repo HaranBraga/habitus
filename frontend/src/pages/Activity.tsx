@@ -3,6 +3,7 @@ import { getDashboard, logActivity } from '../lib/api'
 import { ProgressBar } from '../components/ProgressBar'
 import { PageHeader } from '../components/PageHeader'
 import { RetroactiveDate } from '../components/RetroactiveDate'
+import { SuccessToast } from '../components/SuccessToast'
 import { Dumbbell, Plus, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -18,10 +19,18 @@ export function ActivityPage({ userId }: Props) {
   const [minutes, setMinutes] = useState('')
   const [desc, setDesc] = useState('')
   const [loggedAt, setLoggedAt] = useState<string | null>(null)
+  const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
   const mutation = useMutation({
     mutationFn: (d: { durationMinutes: number; description?: string }) => logActivity(userId, { ...d, loggedAt: loggedAt ?? undefined }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['dashboard', userId] }); setMinutes(''); setDesc(''); setLoggedAt(null) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['dashboard', userId] })
+      setSuccessMsg(loggedAt
+        ? `Registrado para ${new Date(loggedAt).toLocaleDateString('pt-BR')} com sucesso`
+        : 'Registrado com sucesso')
+      setMinutes(''); setDesc(''); setLoggedAt(null)
+      setTimeout(() => setSuccessMsg(null), 4000)
+    },
   })
 
   if (isLoading || !data) return (
@@ -48,6 +57,8 @@ export function ActivityPage({ userId }: Props) {
           <span className="text-gray-600">+{pts} pts</span>
         </div>
       </div>
+
+      {successMsg && <SuccessToast message={successMsg} />}
 
       <RetroactiveDate value={loggedAt} onChange={setLoggedAt} accent="#10b981" />
 

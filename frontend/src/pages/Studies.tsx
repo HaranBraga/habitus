@@ -4,6 +4,7 @@ import { getDashboard, logReading, logEnglish } from '../lib/api'
 import { ProgressBar } from '../components/ProgressBar'
 import { PageHeader } from '../components/PageHeader'
 import { RetroactiveDate } from '../components/RetroactiveDate'
+import { SuccessToast } from '../components/SuccessToast'
 import { BookOpen, Languages, Plus, Loader2 } from 'lucide-react'
 
 type Props = { userId: string }
@@ -19,6 +20,8 @@ export function StudiesPage({ userId }: Props) {
   const [engMin, setEngMin] = useState('')
   const [readLoggedAt, setReadLoggedAt] = useState<string | null>(null)
   const [engLoggedAt, setEngLoggedAt] = useState<string | null>(null)
+  const [readSuccessMsg, setReadSuccessMsg] = useState<string | null>(null)
+  const [engSuccessMsg, setEngSuccessMsg] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', userId],
@@ -27,11 +30,25 @@ export function StudiesPage({ userId }: Props) {
 
   const readMutation = useMutation({
     mutationFn: (m: number) => logReading(userId, m, readLoggedAt ?? undefined),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['dashboard', userId] }); setReadMin(''); setReadLoggedAt(null) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['dashboard', userId] })
+      setReadSuccessMsg(readLoggedAt
+        ? `Registrado para ${new Date(readLoggedAt).toLocaleDateString('pt-BR')} com sucesso`
+        : 'Registrado com sucesso')
+      setReadMin(''); setReadLoggedAt(null)
+      setTimeout(() => setReadSuccessMsg(null), 4000)
+    },
   })
   const engMutation = useMutation({
     mutationFn: (m: number) => logEnglish(userId, m, engLoggedAt ?? undefined),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['dashboard', userId] }); setEngMin(''); setEngLoggedAt(null) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['dashboard', userId] })
+      setEngSuccessMsg(engLoggedAt
+        ? `Registrado para ${new Date(engLoggedAt).toLocaleDateString('pt-BR')} com sucesso`
+        : 'Registrado com sucesso')
+      setEngMin(''); setEngLoggedAt(null)
+      setTimeout(() => setEngSuccessMsg(null), 4000)
+    },
   })
 
   if (isLoading || !data) return (
@@ -81,6 +98,8 @@ export function StudiesPage({ userId }: Props) {
             <ProgressBar value={reading.total} max={readGoal} color="bg-violet-500" height="h-2" />
             <p className="text-sm font-semibold text-violet-400">{readPct}% — {Math.min(15, Math.round((reading.total / readGoal) * 15))} pts</p>
           </div>
+
+          {readSuccessMsg && <SuccessToast message={readSuccessMsg} />}
 
           <RetroactiveDate value={readLoggedAt} onChange={setReadLoggedAt} accent="#8b5cf6" />
 
@@ -137,6 +156,8 @@ export function StudiesPage({ userId }: Props) {
             <ProgressBar value={english.total} max={engGoal} color="bg-amber-500" height="h-2" />
             <p className="text-sm font-semibold text-amber-400">{engPct}% — {engPts} pts</p>
           </div>
+
+          {engSuccessMsg && <SuccessToast message={engSuccessMsg} />}
 
           <RetroactiveDate value={engLoggedAt} onChange={setEngLoggedAt} accent="#f59e0b" />
 

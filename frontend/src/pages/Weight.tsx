@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getDashboard, logWeight, getWeightHistory, getWeightGoal } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
 import { RetroactiveDate } from '../components/RetroactiveDate'
+import { SuccessToast } from '../components/SuccessToast'
 import { Scale, Plus, Loader2, TrendingDown, TrendingUp, Minus, Target } from 'lucide-react'
 import { useState } from 'react'
 
@@ -24,6 +25,7 @@ export function WeightPage({ userId }: Props) {
   const [weight, setWeight] = useState('')
   const [loggedAt, setLoggedAt] = useState<string | null>(null)
   const [newWaterGoal, setNewWaterGoal] = useState<number | null>(null)
+  const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
   const mutation = useMutation({
     mutationFn: (w: number) => logWeight(userId, w, loggedAt ?? undefined),
@@ -31,8 +33,12 @@ export function WeightPage({ userId }: Props) {
       qc.invalidateQueries({ queryKey: ['dashboard', userId] })
       qc.invalidateQueries({ queryKey: ['weight-history', userId] })
       setNewWaterGoal(res.newWaterGoal)
+      setSuccessMsg(loggedAt
+        ? `Registrado para ${new Date(loggedAt).toLocaleDateString('pt-BR')} com sucesso`
+        : 'Registrado com sucesso')
       setWeight('')
       setLoggedAt(null)
+      setTimeout(() => setSuccessMsg(null), 4000)
     },
   })
 
@@ -131,6 +137,8 @@ export function WeightPage({ userId }: Props) {
           {mutation.isPending ? <Loader2 size={16} className="animate-spin text-white" /> : <Plus size={20} className="text-white" />}
         </button>
       </div>
+
+      {successMsg && <SuccessToast message={successMsg} />}
 
       {mutation.isSuccess && newWaterGoal && (
         <p className="text-xs text-emerald-400 text-center">

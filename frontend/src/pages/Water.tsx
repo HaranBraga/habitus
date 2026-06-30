@@ -3,6 +3,7 @@ import { getDashboard, logWater, deleteWaterLog } from '../lib/api'
 import { ProgressBar } from '../components/ProgressBar'
 import { PageHeader } from '../components/PageHeader'
 import { RetroactiveDate } from '../components/RetroactiveDate'
+import { SuccessToast } from '../components/SuccessToast'
 import { Droplets, Plus, Trash2, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -17,10 +18,18 @@ export function WaterPage({ userId }: Props) {
   })
   const [custom, setCustom] = useState('')
   const [loggedAt, setLoggedAt] = useState<string | null>(null)
+  const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
   const logMutation = useMutation({
     mutationFn: (ml: number) => logWater(userId, ml, loggedAt ?? undefined),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['dashboard', userId] }); setLoggedAt(null) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['dashboard', userId] })
+      setSuccessMsg(loggedAt
+        ? `Registrado para ${new Date(loggedAt).toLocaleDateString('pt-BR')} com sucesso`
+        : 'Registrado com sucesso')
+      setLoggedAt(null)
+      setTimeout(() => setSuccessMsg(null), 4000)
+    },
   })
   const deleteMutation = useMutation({
     mutationFn: deleteWaterLog,
@@ -51,6 +60,8 @@ export function WaterPage({ userId }: Props) {
           <span className="text-gray-600">+{pts} pts</span>
         </div>
       </div>
+
+      {successMsg && <SuccessToast message={successMsg} />}
 
       <RetroactiveDate value={loggedAt} onChange={setLoggedAt} accent="#3b82f6" />
 
