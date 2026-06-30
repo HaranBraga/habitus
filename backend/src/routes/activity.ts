@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '../server'
-import { startOfDay, endOfDay } from '../utils/date'
+import { startOfDay, endOfDay, resolveLoggedAt } from '../utils/date'
 
 export async function activityRoutes(app: FastifyInstance) {
   app.post('/:userId', async (req, reply) => {
@@ -9,12 +9,16 @@ export async function activityRoutes(app: FastifyInstance) {
     const schema = z.object({
       durationMinutes: z.number().min(1).max(480),
       description: z.string().optional(),
+      loggedAt: z.string().optional(),
     })
     const parsed = schema.safeParse(req.body)
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() })
 
+    const loggedAt = resolveLoggedAt(parsed.data.loggedAt)
+    if (!loggedAt) return reply.status(400).send({ error: 'Data inválida ou no futuro' })
+
     const log = await prisma.activityLog.create({
-      data: { userId, ...parsed.data, loggedAt: new Date() },
+      data: { userId, durationMinutes: parsed.data.durationMinutes, description: parsed.data.description, loggedAt },
     })
     return reply.status(201).send(log)
   })

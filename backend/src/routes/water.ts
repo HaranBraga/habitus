@@ -1,17 +1,20 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '../server'
-import { startOfDay, endOfDay } from '../utils/date'
+import { startOfDay, endOfDay, resolveLoggedAt } from '../utils/date'
 
 export async function waterRoutes(app: FastifyInstance) {
   app.post('/:userId', async (req, reply) => {
     const { userId } = req.params as { userId: string }
-    const schema = z.object({ amountMl: z.number().min(50).max(2000) })
+    const schema = z.object({ amountMl: z.number().min(50).max(2000), loggedAt: z.string().optional() })
     const parsed = schema.safeParse(req.body)
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() })
 
+    const loggedAt = resolveLoggedAt(parsed.data.loggedAt)
+    if (!loggedAt) return reply.status(400).send({ error: 'Data inválida ou no futuro' })
+
     const log = await prisma.waterLog.create({
-      data: { userId, amountMl: parsed.data.amountMl, loggedAt: new Date() },
+      data: { userId, amountMl: parsed.data.amountMl, loggedAt },
     })
     return reply.status(201).send(log)
   })

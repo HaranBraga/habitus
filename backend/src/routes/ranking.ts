@@ -21,7 +21,7 @@ function calcPoints(data: {
   return pts
 }
 
-async function calcStreak(userId: string): Promise<number> {
+export async function calcStreak(userId: string): Promise<number> {
   const logs = await prisma.waterLog.findMany({
     where: { userId }, orderBy: { loggedAt: 'desc' }, select: { loggedAt: true },
   })
@@ -39,7 +39,7 @@ async function calcStreak(userId: string): Promise<number> {
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
 
-async function getUserFullStats(userId: string, target?: { year: number; month: number }) {
+export async function getUserFullStats(userId: string, target?: { year: number; month: number }) {
   const user = await prisma.user.findUnique({ where: { id: userId }, include: { settings: true } })
   if (!user) return null
 

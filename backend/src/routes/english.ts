@@ -1,17 +1,20 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '../server'
-import { startOfDay, endOfDay } from '../utils/date'
+import { startOfDay, endOfDay, resolveLoggedAt } from '../utils/date'
 
 export async function englishRoutes(app: FastifyInstance) {
   app.post('/:userId', async (req, reply) => {
     const { userId } = req.params as { userId: string }
-    const schema = z.object({ durationMinutes: z.number().min(1).max(480) })
+    const schema = z.object({ durationMinutes: z.number().min(1).max(480), loggedAt: z.string().optional() })
     const parsed = schema.safeParse(req.body)
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() })
 
+    const loggedAt = resolveLoggedAt(parsed.data.loggedAt)
+    if (!loggedAt) return reply.status(400).send({ error: 'Data inválida ou no futuro' })
+
     const log = await prisma.englishLog.create({
-      data: { userId, studied: true, durationMinutes: parsed.data.durationMinutes, loggedAt: new Date() },
+      data: { userId, studied: true, durationMinutes: parsed.data.durationMinutes, loggedAt },
     })
     return reply.status(201).send(log)
   })

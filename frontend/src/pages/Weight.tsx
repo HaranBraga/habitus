@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getDashboard, logWeight, getWeightHistory, getWeightGoal } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
+import { RetroactiveDate } from '../components/RetroactiveDate'
 import { Scale, Plus, Loader2, TrendingDown, TrendingUp, Minus, Target } from 'lucide-react'
 import { useState } from 'react'
 
@@ -21,17 +22,17 @@ export function WeightPage({ userId }: Props) {
     queryFn: () => getWeightGoal(userId),
   })
   const [weight, setWeight] = useState('')
+  const [loggedAt, setLoggedAt] = useState<string | null>(null)
+  const [newWaterGoal, setNewWaterGoal] = useState<number | null>(null)
 
   const mutation = useMutation({
-    mutationFn: (w: number) => logWeight(userId, w),
+    mutationFn: (w: number) => logWeight(userId, w, loggedAt ?? undefined),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['dashboard', userId] })
       qc.invalidateQueries({ queryKey: ['weight-history', userId] })
-      if (res.newWaterGoal) {
-        // Dashboard will refresh with new water goal
-        qc.invalidateQueries({ queryKey: ['dashboard', userId] })
-      }
+      setNewWaterGoal(res.newWaterGoal)
       setWeight('')
+      setLoggedAt(null)
     },
   })
 
@@ -116,6 +117,8 @@ export function WeightPage({ userId }: Props) {
       )}
 
       {/* Log weight */}
+      <RetroactiveDate value={loggedAt} onChange={setLoggedAt} accent="#ec4899" />
+
       <div className="flex gap-2">
         <input type="number" placeholder="Peso atual (kg)" value={weight} step="0.1"
           onChange={e => setWeight(e.target.value)} min={20} max={300}
@@ -129,9 +132,9 @@ export function WeightPage({ userId }: Props) {
         </button>
       </div>
 
-      {mutation.isSuccess && (
+      {mutation.isSuccess && newWaterGoal && (
         <p className="text-xs text-emerald-400 text-center">
-          Meta de água atualizada automaticamente para {Math.round(parseFloat(weight) * 35 / 100) * 100}ml/dia
+          Meta de água atualizada automaticamente para {newWaterGoal}ml/dia
         </p>
       )}
 

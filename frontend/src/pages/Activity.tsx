@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getDashboard, logActivity } from '../lib/api'
 import { ProgressBar } from '../components/ProgressBar'
 import { PageHeader } from '../components/PageHeader'
+import { RetroactiveDate } from '../components/RetroactiveDate'
 import { Dumbbell, Plus, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -16,10 +17,11 @@ export function ActivityPage({ userId }: Props) {
   })
   const [minutes, setMinutes] = useState('')
   const [desc, setDesc] = useState('')
+  const [loggedAt, setLoggedAt] = useState<string | null>(null)
 
   const mutation = useMutation({
-    mutationFn: (d: { durationMinutes: number; description?: string }) => logActivity(userId, d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['dashboard', userId] }); setMinutes(''); setDesc('') },
+    mutationFn: (d: { durationMinutes: number; description?: string }) => logActivity(userId, { ...d, loggedAt: loggedAt ?? undefined }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['dashboard', userId] }); setMinutes(''); setDesc(''); setLoggedAt(null) },
   })
 
   if (isLoading || !data) return (
@@ -46,6 +48,8 @@ export function ActivityPage({ userId }: Props) {
           <span className="text-gray-600">+{pts} pts</span>
         </div>
       </div>
+
+      <RetroactiveDate value={loggedAt} onChange={setLoggedAt} accent="#10b981" />
 
       <div className="grid grid-cols-4 gap-2">
         {PRESETS.map(min => (

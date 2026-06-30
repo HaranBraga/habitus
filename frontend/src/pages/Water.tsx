@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getDashboard, logWater, deleteWaterLog } from '../lib/api'
 import { ProgressBar } from '../components/ProgressBar'
 import { PageHeader } from '../components/PageHeader'
+import { RetroactiveDate } from '../components/RetroactiveDate'
 import { Droplets, Plus, Trash2, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -15,10 +16,11 @@ export function WaterPage({ userId }: Props) {
     queryFn: () => getDashboard(userId),
   })
   const [custom, setCustom] = useState('')
+  const [loggedAt, setLoggedAt] = useState<string | null>(null)
 
   const logMutation = useMutation({
-    mutationFn: (ml: number) => logWater(userId, ml),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['dashboard', userId] }),
+    mutationFn: (ml: number) => logWater(userId, ml, loggedAt ?? undefined),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['dashboard', userId] }); setLoggedAt(null) },
   })
   const deleteMutation = useMutation({
     mutationFn: deleteWaterLog,
@@ -49,6 +51,8 @@ export function WaterPage({ userId }: Props) {
           <span className="text-gray-600">+{pts} pts</span>
         </div>
       </div>
+
+      <RetroactiveDate value={loggedAt} onChange={setLoggedAt} accent="#3b82f6" />
 
       <div>
         <p className="text-xs text-gray-600 uppercase tracking-wider mb-3 font-medium">Registro rápido</p>

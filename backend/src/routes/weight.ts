@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '../server'
+import { resolveLoggedAt } from '../utils/date'
 
 // Water goal: ml/kg varies by age, rounded to nearest 100ml
 export function calcWaterGoal(weightKg: number, age: number): number {
@@ -56,41 +57,50 @@ export function calcWeightPoints(
 export async function weightRoutes(app: FastifyInstance) {
   app.post('/:userId', async (req, reply) => {
     const { userId } = req.params as { userId: string }
-    const schema = z.object({ weight: z.number().min(20).max(300) })
+    const schema = z.object({ weight: z.number().min(20).max(300), loggedAt: z.string().optional() })
     const parsed = schema.safeParse(req.body)
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() })
 
     const { weight } = parsed.data
+    const loggedAt = resolveLoggedAt(parsed.data.loggedAt)
+    if (!loggedAt) return reply.status(400).send({ error: 'Data inválida ou no futuro' })
 
-    const [user, settings, lastOfficial] = await Promise.all([
+    const [user, settings, lastOfficial, mostRecentLog] = await Promise.all([
       prisma.user.findUnique({ where: { id: userId } }),
       prisma.userSettings.findUnique({ where: { userId } }),
+      // Official weigh-in immediately before this entry's date — not just the globally latest one,
+      // so backdated entries are slotted into the correct point in the timeline.
       prisma.weightLog.findFirst({
-        where: { userId, isOfficial: true },
+        where: { userId, isOfficial: true, loggedAt: { lt: loggedAt } },
         orderBy: { loggedAt: 'desc' },
       }),
+      prisma.weightLog.findFirst({ where: { userId }, orderBy: { loggedAt: 'desc' } }),
     ])
 
     if (!user) return reply.status(404).send({ error: 'Usuário não encontrado' })
 
     const intervalDays = settings?.weightCheckIntervalDays ?? 7
     const daysAgoLastOfficial = lastOfficial
-      ? Math.floor((Date.now() - lastOfficial.loggedAt.getTime()) / 86400000)
+      ? Math.floor((loggedAt.getTime() - lastOfficial.loggedAt.getTime()) / 86400000)
       : intervalDays + 1
 
     // Mark as official if first weight or interval has passed
     const isOfficial = daysAgoLastOfficial >= intervalDays
 
-    // Auto-update water goal based on new weight and age
-    const newWaterGoal = calcWaterGoal(weight, user.age)
-    await prisma.userSettings.upsert({
-      where: { userId },
-      update: { waterGoalMl: newWaterGoal },
-      create: { userId, waterGoalMl: newWaterGoal },
-    })
+    // Only treat this as the user's current weight (and refresh the water goal) when it's
+    // not a backdated entry being inserted before an already-existing, more recent log.
+    const isMostRecent = !mostRecentLog || loggedAt.getTime() >= mostRecentLog.loggedAt.getTime()
+    const newWaterGoal = isMostRecent ? calcWaterGoal(weight, user.age) : null
+    if (newWaterGoal) {
+      await prisma.userSettings.upsert({
+        where: { userId },
+        update: { waterGoalMl: newWaterGoal },
+        create: { userId, waterGoalMl: newWaterGoal },
+      })
+    }
 
     const log = await prisma.weightLog.create({
-      data: { userId, weight, isOfficial, loggedAt: new Date() },
+      data: { userId, weight, isOfficial, loggedAt },
     })
 
     const goal = calcWeightGoal(user.height)

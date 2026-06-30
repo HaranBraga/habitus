@@ -72,13 +72,13 @@ export const getDashboard = (userId: string) =>
   api.get<DashboardData>(`/dashboard/${userId}`).then(r => r.data)
 
 // Water
-export const logWater = (userId: string, amountMl: number) =>
-  api.post(`/water/${userId}`, { amountMl }).then(r => r.data)
+export const logWater = (userId: string, amountMl: number, loggedAt?: string) =>
+  api.post(`/water/${userId}`, { amountMl, loggedAt }).then(r => r.data)
 export const deleteWaterLog = (logId: string) => api.delete(`/water/${logId}`)
 
 // Weight
-export const logWeight = (userId: string, weight: number) =>
-  api.post<{ isOfficial: boolean; newWaterGoal: number; weightPoints: { points: number; reason: string } | null }>(`/weight/${userId}`, { weight }).then(r => r.data)
+export const logWeight = (userId: string, weight: number, loggedAt?: string) =>
+  api.post<{ isOfficial: boolean; newWaterGoal: number | null; weightPoints: { points: number; reason: string } | null }>(`/weight/${userId}`, { weight, loggedAt }).then(r => r.data)
 export const getWeightHistory = (userId: string) =>
   api.get<WeightLog[]>(`/weight/${userId}/history`).then(r => r.data)
 export const getWeightOfficial = (userId: string) =>
@@ -89,16 +89,16 @@ export const getWeightStatus = (userId: string) =>
   api.get<WeightStatus>(`/weight/${userId}/status`).then(r => r.data)
 
 // Activity
-export const logActivity = (userId: string, d: { durationMinutes: number; description?: string }) =>
+export const logActivity = (userId: string, d: { durationMinutes: number; description?: string; loggedAt?: string }) =>
   api.post(`/activity/${userId}`, d).then(r => r.data)
 
 // Reading
-export const logReading = (userId: string, durationMinutes: number) =>
-  api.post(`/reading/${userId}`, { durationMinutes }).then(r => r.data)
+export const logReading = (userId: string, durationMinutes: number, loggedAt?: string) =>
+  api.post(`/reading/${userId}`, { durationMinutes, loggedAt }).then(r => r.data)
 
 // English
-export const logEnglish = (userId: string, durationMinutes: number) =>
-  api.post(`/english/${userId}`, { durationMinutes }).then(r => r.data)
+export const logEnglish = (userId: string, durationMinutes: number, loggedAt?: string) =>
+  api.post(`/english/${userId}`, { durationMinutes, loggedAt }).then(r => r.data)
 
 // Settings
 export const updateSettings = (userId: string, d: Partial<UserSettings>) =>
@@ -124,5 +124,18 @@ export const getEvolution = (userId: string, months = 6) =>
   api.get<EvolutionData>(`/ranking/${userId}/evolution`, { params: { months } }).then(r => r.data)
 
 // Analysis
+export type AnalysisSection = { title: string; body: string }
+export type AnalysisResult = {
+  analysis: string
+  sections: AnalysisSection[]
+  data: {
+    waterAvg7d: number; activityAvg7d: number; readingAvg7d: number; englishDays7d: number
+    weightHistory: { weight: number; loggedAt: string; isOfficial: boolean }[]
+    dailyTrend: { date: string; water: number; activity: number; reading: number; english: number }[]
+    streak: number; level: number; levelName: string; monthlyPoints: number; totalPoints: number
+    targetWeight: number; distanceToGoal: number | null
+    groupTasksCompletedToday: number; groupTasksTotalToday: number
+  }
+}
 export const getAnalysis = (userId: string) =>
-  api.get<{ analysis: string; data: Record<string, unknown> }>(`/analysis/${userId}`).then(r => r.data)
+  api.get<AnalysisResult>(`/analysis/${userId}`).then(r => r.data)
