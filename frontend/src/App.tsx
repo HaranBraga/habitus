@@ -14,7 +14,7 @@ import { OverviewPage } from './pages/Overview'
 import { TasksPage } from './pages/Tasks'
 import { SettingsPage } from './pages/Settings'
 import { AnalysisPage } from './pages/Analysis'
-import { ExtratoPage } from './pages/Extrato'
+import { TimelinePage } from './pages/Timeline'
 
 export default function App() {
   const { userId, selectUser, logout } = useUser()
@@ -37,7 +37,7 @@ export default function App() {
           <Route path="/tasks" element={<TasksPage userId={userId} />} />
           <Route path="/settings" element={<SettingsPage userId={userId} />} />
           <Route path="/analysis" element={<AnalysisPage userId={userId} />} />
-          <Route path="/extrato" element={<ExtratoPage userId={userId} />} />
+          <Route path="/timeline" element={<TimelinePage userId={userId} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

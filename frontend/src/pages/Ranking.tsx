@@ -1,68 +1,30 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getRankingDaily, getRankingMonthly, getDashboard, type RankingUser } from '../lib/api'
+import { getRankingDaily, getRankingMonthly, getTimeline, type RankingUser } from '../lib/api'
 import { ProgressBar } from '../components/ProgressBar'
 import { PageHeader } from '../components/PageHeader'
-import { Trophy, Flame, Star, Droplets, Dumbbell, BookOpen, Languages, Loader2, Calendar, Sun, X, ChevronRight, ChevronLeft } from 'lucide-react'
+import { TimelineEntryList } from '../components/TimelineEntryList'
+import { todayAcre } from '../lib/date'
+import { Trophy, Flame, Star, Droplets, Dumbbell, BookOpen, Languages, Loader2, Calendar, Sun, X, ChevronRight, ChevronLeft, LucideIcon } from 'lucide-react'
 
 type Props = { userId: string }
 type Tab = 'daily' | 'monthly'
+type DetailStat = { Icon: LucideIcon; value: string; color: string }
+type DetailTarget = { userId: string; userName: string; date: string; isToday: boolean; stats?: DetailStat[] }
 
 const LEVEL_COLORS = ['', '#6b7280', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899']
 const LEVEL_NAMES = ['', 'Iniciante', 'Aprendiz', 'Comprometido', 'Consistente', 'Elite']
 
-function fmt(dateStr: string) {
-  return new Date(dateStr).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-}
-
-function UserActivityModal({ user, onClose }: { user: RankingUser; onClose: () => void }) {
+function DayDetailModal({ target, onClose }: { target: DetailTarget; onClose: () => void }) {
+  const { userId, userName, date, isToday, stats } = target
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard', user.userId],
-    queryFn: () => getDashboard(user.userId),
+    queryKey: ['timeline', userId, date],
+    queryFn: () => getTimeline(userId, date),
   })
 
-  const sections = data ? [
-    {
-      icon: Droplets, color: '#3b82f6', label: 'Água',
-      summary: `${data.today.water.total}ml / ${data.today.water.goal}ml`,
-      progress: Math.min(100, (data.today.water.total / data.today.water.goal) * 100),
-      items: data.today.water.logs.map(l => ({
-        main: `${l.amountMl}ml`,
-        sub: fmt(l.loggedAt),
-      })),
-      empty: 'Nenhum registro de água hoje',
-    },
-    {
-      icon: Dumbbell, color: '#10b981', label: 'Atividade',
-      summary: `${data.today.activity.total}min / ${data.today.activity.goal}min`,
-      progress: Math.min(100, (data.today.activity.total / data.today.activity.goal) * 100),
-      items: data.today.activity.logs.map(l => ({
-        main: l.description ?? 'Atividade',
-        sub: `${l.durationMinutes}min · ${fmt(l.loggedAt)}`,
-      })),
-      empty: 'Nenhuma atividade registrada hoje',
-    },
-    {
-      icon: BookOpen, color: '#8b5cf6', label: 'Leitura',
-      summary: `${data.today.reading.total}min / ${data.today.reading.goal}min`,
-      progress: Math.min(100, (data.today.reading.total / data.today.reading.goal) * 100),
-      items: data.today.reading.logs.map(l => ({
-        main: `${l.durationMinutes}min`,
-        sub: fmt(l.loggedAt),
-      })),
-      empty: 'Nenhuma leitura registrada hoje',
-    },
-    {
-      icon: Languages, color: '#f59e0b', label: 'Inglês',
-      summary: `${data.today.english.total}min / ${data.today.english.goal}min`,
-      progress: Math.min(100, (data.today.english.total / data.today.english.goal) * 100),
-      items: data.today.english.logs.map(l => ({
-        main: `${l.durationMinutes}min`,
-        sub: fmt(l.loggedAt),
-      })),
-      empty: 'Nenhum estudo de inglês registrado hoje',
-    },
-  ] : []
+  const dateLabel = new Date(`${date}T12:00:00-05:00`).toLocaleDateString('pt-BR', {
+    weekday: 'long', day: '2-digit', month: 'long',
+  })
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center"
@@ -80,19 +42,15 @@ function UserActivityModal({ user, onClose }: { user: RankingUser; onClose: () =
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 flex-shrink-0">
           <div>
-            <h2 className="font-bold text-white text-lg">{user.name}</h2>
+            <h2 className="font-bold text-white text-lg">{userName}</h2>
             <div className="flex items-center gap-3 mt-0.5">
-              <span className="text-xs font-medium" style={{ color: LEVEL_COLORS[user.level] }}>
-                Nv.{user.level} {LEVEL_NAMES[user.level]}
-              </span>
-              <div className="flex items-center gap-1">
-                <Flame size={10} className="text-orange-400" />
-                <span className="text-xs text-orange-400">{user.streak}d</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Star size={10} className="text-primary" />
-                <span className="text-xs text-primary">{user.todayPoints} pts hoje</span>
-              </div>
+              <span className="text-xs text-gray-500 capitalize">{isToday ? 'Hoje' : dateLabel}</span>
+              {stats?.map(s => (
+                <div key={s.value} className="flex items-center gap-1">
+                  <s.Icon size={10} style={{ color: s.color }} />
+                  <span className="text-xs" style={{ color: s.color }}>{s.value}</span>
+                </div>
+              ))}
             </div>
           </div>
           <button onClick={onClose} className="p-2 rounded-xl text-gray-500 hover:text-gray-300 transition-colors"
@@ -102,43 +60,15 @@ function UserActivityModal({ user, onClose }: { user: RankingUser; onClose: () =
         </div>
 
         {/* Scrollable content */}
-        <div className="overflow-y-auto flex-1 min-h-0 px-5 pb-6 space-y-4" style={{ WebkitOverflowScrolling: 'touch' }}>
-          {isLoading ? (
+        <div className="overflow-y-auto flex-1 min-h-0 px-5 pb-6" style={{ WebkitOverflowScrolling: 'touch' }}>
+          {isLoading || !data ? (
             <div className="flex justify-center py-10">
               <Loader2 className="animate-spin text-primary" size={24} />
             </div>
+          ) : data.entries.length === 0 ? (
+            <p className="text-sm text-gray-600 text-center py-10">Nada registrado nesse dia</p>
           ) : (
-            sections.map(({ icon: Icon, color, label, summary, progress, items, empty }) => (
-              <div key={label} className="rounded-2xl overflow-hidden" style={{ background: '#1c1c28', border: '1px solid #2a2a3a' }}>
-                {/* Section header */}
-                <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #2a2a3a' }}>
-                  <div className="flex items-center gap-2">
-                    <Icon size={14} style={{ color }} strokeWidth={2.5} />
-                    <span className="text-sm font-semibold text-white">{label}</span>
-                  </div>
-                  <span className="text-xs text-gray-500">{summary}</span>
-                </div>
-                <div className="px-4 py-1">
-                  <ProgressBar value={progress} max={100} color="" height="h-1" className="opacity-70" />
-                </div>
-                {/* Log items */}
-                <div className="px-4 pb-3 pt-1 space-y-2">
-                  {items.length === 0 ? (
-                    <p className="text-xs text-gray-600 py-1">{empty}</p>
-                  ) : (
-                    items.map((item, i) => (
-                      <div key={i} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
-                          <span className="text-sm text-white font-medium">{item.main}</span>
-                        </div>
-                        <span className="text-xs text-gray-600">{item.sub}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            ))
+            <TimelineEntryList entries={data.entries} />
           )}
         </div>
       </div>
@@ -224,7 +154,7 @@ function UserCard({ user, rank, isMe, mode, onClick }: { user: RankingUser; rank
 
 const MONTH_LABELS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
-function MonthDayBreakdown({ users }: { users: RankingUser[] }) {
+function MonthDayBreakdown({ users, onSelectDay }: { users: RankingUser[]; onSelectDay: (userId: string, userName: string, date: string, points: number) => void }) {
   const colors = ['#7c5cfc', '#ec4899', '#10b981', '#f59e0b']
   const dayCount = users[0]?.days.length ?? 0
 
@@ -256,13 +186,16 @@ function MonthDayBreakdown({ users }: { users: RankingUser[] }) {
                 {users.map((u, ui) => {
                   const pts = u.days[i]?.points ?? 0
                   return (
-                    <div key={u.userId} className="flex items-center gap-2">
+                    <button key={u.userId} type="button"
+                      onClick={() => date && onSelectDay(u.userId, u.name, date, pts)}
+                      disabled={!date}
+                      className="w-full flex items-center gap-2 active:opacity-60 transition-opacity">
                       <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
                         <div className="h-full rounded-full transition-all"
                           style={{ width: `${Math.min(100, (pts / maxPts) * 100)}%`, background: colors[ui % colors.length] }} />
                       </div>
                       <span className="text-xs font-semibold text-white w-8 text-right">{pts}</span>
-                    </div>
+                    </button>
                   )
                 })}
               </div>
@@ -278,11 +211,12 @@ export function RankingPage({ userId }: Props) {
   const [tab, setTab] = useState<Tab>('daily')
   const [monthDate, setMonthDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   const [dayView, setDayView] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<RankingUser | null>(null)
+  const [detail, setDetail] = useState<DetailTarget | null>(null)
 
   const now = new Date()
   const isCurrentMonth = monthDate.getFullYear() === now.getFullYear() && monthDate.getMonth() === now.getMonth()
   const monthParam = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`
+  const today = todayAcre()
 
   const { data: daily, isLoading: loadingDaily } = useQuery({
     queryKey: ['ranking', 'daily'],
@@ -303,10 +237,20 @@ export function RankingPage({ userId }: Props) {
   const monthTotal = (first?.monthlyPoints ?? 0) + (second?.monthlyPoints ?? 0)
   const compTotal = tab === 'daily' ? totalPts : monthTotal
 
+  function openTodayDetail(user: RankingUser) {
+    setDetail({
+      userId: user.userId, userName: user.name, date: today, isToday: true,
+      stats: [
+        { Icon: Flame, value: `${user.streak}d`, color: '#fb923c' },
+        { Icon: Star, value: `${user.todayPoints} pts hoje`, color: '#9d82fd' },
+      ],
+    })
+  }
+
   return (
     <div className="px-4 pt-12 pb-4 space-y-4">
-      {selectedUser && (
-        <UserActivityModal user={selectedUser} onClose={() => setSelectedUser(null)} />
+      {detail && (
+        <DayDetailModal target={detail} onClose={() => setDetail(null)} />
       )}
 
       <PageHeader title="Ranking" subtitle={tab === 'daily' ? 'Batalha de hoje' : `${MONTH_LABELS[monthDate.getMonth()]} de ${monthDate.getFullYear()}`}
@@ -360,7 +304,10 @@ export function RankingPage({ userId }: Props) {
       {isLoading ? (
         <div className="flex justify-center pt-8"><Loader2 className="animate-spin text-primary" size={28} /></div>
       ) : tab === 'monthly' && dayView && data && data.length >= 1 ? (
-        <MonthDayBreakdown users={data} />
+        <MonthDayBreakdown users={data} onSelectDay={(uid, uname, date, points) => setDetail({
+          userId: uid, userName: uname, date, isToday: date === today,
+          stats: [{ Icon: Star, value: `${points} pts nesse dia`, color: '#9d82fd' }],
+        })} />
       ) : data && data.length >= 2 ? (
         <>
           <div className="rounded-2xl p-4 space-y-3" style={{ background: '#1c1c28', border: '1px solid #2a2a3a' }}>
@@ -396,13 +343,13 @@ export function RankingPage({ userId }: Props) {
           <div className="space-y-3">
             {data.map((user, i) => (
               <UserCard key={user.userId} user={user} rank={i + 1} isMe={user.userId === userId} mode={tab}
-                onClick={() => setSelectedUser(user)} />
+                onClick={() => openTodayDetail(user)} />
             ))}
           </div>
         </>
       ) : data && data.length === 1 ? (
         <UserCard user={data[0]} rank={1} isMe={data[0].userId === userId} mode={tab}
-          onClick={() => setSelectedUser(data[0])} />
+          onClick={() => openTodayDetail(data[0])} />
       ) : (
         <div className="text-center py-12 text-gray-600">
           <Trophy size={40} className="mx-auto mb-3 opacity-20" />
