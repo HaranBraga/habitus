@@ -15,6 +15,7 @@ import { groupTasksRoutes } from './routes/grouptasks'
 import { rankingRoutes } from './routes/ranking'
 import { analysisRoutes } from './routes/analysis'
 import { pushRoutes } from './routes/push'
+import { timelineRoutes } from './routes/timeline'
 import { startScheduler } from './services/scheduler'
 import { initWebPush } from './services/webpush'
 
@@ -40,6 +41,7 @@ async function main() {
   app.register(rankingRoutes, { prefix: '/api/ranking' })
   app.register(analysisRoutes, { prefix: '/api/analysis' })
   app.register(pushRoutes, { prefix: '/api/push' })
+  app.register(timelineRoutes, { prefix: '/api/timeline' })
 
   app.get('/health', async () => ({ status: 'ok' }))
 

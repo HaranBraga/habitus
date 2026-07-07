@@ -123,6 +123,26 @@ export const getRankingMonthly = (month?: string) =>
 export const getEvolution = (userId: string, months = 6) =>
   api.get<EvolutionData>(`/ranking/${userId}/evolution`, { params: { months } }).then(r => r.data)
 
+// Timeline (extrato do dia)
+export type TimelineEntry =
+  | { id: string; type: 'water'; loggedAt: string; amountMl: number }
+  | { id: string; type: 'activity'; loggedAt: string; durationMinutes: number; description: string | null }
+  | { id: string; type: 'reading'; loggedAt: string; durationMinutes: number }
+  | { id: string; type: 'english'; loggedAt: string; durationMinutes: number | null }
+  | { id: string; type: 'weight'; loggedAt: string; weight: number; isOfficial: boolean }
+  | { id: string; type: 'groupTask'; loggedAt: string; title: string; color: string; pointValue: number }
+export type TimelineData = {
+  date: string
+  isToday: boolean
+  totals: {
+    water: number; activityMinutes: number; readingMinutes: number
+    englishMinutes: number; groupTasksCompleted: number
+  }
+  entries: TimelineEntry[]
+}
+export const getTimeline = (userId: string, date?: string) =>
+  api.get<TimelineData>(`/timeline/${userId}`, { params: date ? { date } : undefined }).then(r => r.data)
+
 // Analysis
 export type AnalysisSection = { title: string; body: string }
 export type AnalysisResult = {
