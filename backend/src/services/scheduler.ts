@@ -1,6 +1,5 @@
 import cron from 'node-cron'
 import { prisma } from '../server'
-import { sendWhatsApp, buildWeightReminderMessage, buildDailySummaryMessage } from './evolution'
 import { generateSmartWaterMessage } from './deepseek'
 import { sendPushToUser } from './webpush'
 import { startOfDay, endOfDay, toLocalDateStr } from '../utils/date'
@@ -37,8 +36,6 @@ async function checkWaterReminders() {
 
     const isUrgent = hour >= 14 && todayTotal < 500
     const msg = await generateSmartWaterMessage(user.name, todayTotal, waterGoal, hour)
-    const prefix = isUrgent ? '🚨 *URGENTE* — ' : ''
-    await sendWhatsApp(user.phone, prefix + msg)
     await sendPushToUser(user.id, isUrgent ? '💧 Atenção!' : '💧 Lembrete de água', msg.slice(0, 120))
   }
 }
@@ -55,8 +52,6 @@ async function checkWeightReminders() {
       : intervalDays + 1
 
     if (daysAgo >= intervalDays) {
-      const msg = buildWeightReminderMessage(user.name, daysAgo)
-      await sendWhatsApp(user.phone, msg)
       await sendPushToUser(user.id, '⚖️ Hora de pesar!', `Você não registra o peso há ${daysAgo} dias.`)
     }
   }
@@ -99,10 +94,6 @@ async function sendDailySummaries() {
       if (days.has(toLocalDateStr(d))) streak++; else break
     }
 
-    const msg = buildDailySummaryMessage(user.name, {
-      waterTotal, waterGoal, activityTotal: actTotal, englishTotal: engTotal, englishGoal: engGoal, readingTotal: readTotal, streak, points,
-    })
-    await sendWhatsApp(user.phone, msg)
     await sendPushToUser(user.id, '🌙 Resumo do dia', `${points} pts hoje · ${streak} dias de sequência`)
   }
 }
@@ -137,9 +128,7 @@ async function checkCelebration() {
 
   if (results.every(r => r.completed)) {
     const names = results.map(r => r.user.name.split(' ')[0]).join(' e ')
-    const celebMsg = `🎉 *MISSÃO CUMPRIDA!*\n\n${names} completaram todas as metas hoje! Isso é incrível! 💪🔥\n\nContinuem assim — consistência é o que transforma hábito em estilo de vida!`
     for (const { user } of results) {
-      await sendWhatsApp(user.phone, celebMsg)
       await sendPushToUser(user.id, '🎉 Missão cumprida!', `${names} completaram todas as metas hoje!`)
     }
   }

@@ -209,7 +209,7 @@ export function SettingsPage({ userId }: Props) {
 
       {/* Reminders */}
       <div className="space-y-2">
-        <p className="text-xs text-gray-600 uppercase tracking-wider font-medium px-1">Lembretes WhatsApp</p>
+        <p className="text-xs text-gray-600 uppercase tracking-wider font-medium px-1">Lembretes</p>
         {inp('Lembrete de água', String(settingsForm.waterReminderIntervalHours ?? ''), v => setSettingsForm(f => ({ ...f, waterReminderIntervalHours: parseInt(v) })), { unit: 'a cada X horas', min: 1, max: 12 })}
         {inp('Checagem de peso', String(settingsForm.weightCheckIntervalDays ?? ''), v => setSettingsForm(f => ({ ...f, weightCheckIntervalDays: parseInt(v) })), { unit: 'a cada X dias (oficial)', min: 1, max: 30 })}
       </div>

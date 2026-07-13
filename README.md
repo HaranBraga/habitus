@@ -4,7 +4,7 @@ Sistema de gamificação para uma vida mais produtiva e saudável.
 
 ## Funcionalidades
 
-- 💧 Controle de consumo de água (com lembretes via WhatsApp)
+- 💧 Controle de consumo de água (com lembretes push)
 - 🏃 Registro de atividade física diária
 - 📚 Registro de leitura diária
 - 🇺🇸 Check de estudo de inglês
@@ -17,7 +17,6 @@ Sistema de gamificação para uma vida mais produtiva e saudável.
 - **Frontend**: React + Vite + TypeScript + Tailwind CSS (PWA)
 - **Backend**: Fastify + TypeScript + Prisma
 - **Banco**: PostgreSQL
-- **WhatsApp**: Evolution API
 - **Deploy**: Docker + Easypanel
 
 ## Rodando localmente
@@ -28,8 +27,6 @@ Sistema de gamificação para uma vida mais produtiva e saudável.
 cp .env.example .env
 cp backend/.env.example backend/.env
 ```
-
-Edite `backend/.env` com as configurações da sua Evolution API.
 
 ### 2. Backend
 
@@ -57,15 +54,13 @@ Acesse: http://localhost:5173
 3. Use o `docker-compose.yml` na raiz
 4. Configure as variáveis de ambiente no painel
 
-## Evolution API — configuração dos lembretes
+## Lembretes push — quando são enviados
 
-O backend envia mensagens no WhatsApp nos seguintes momentos:
+O backend envia notificações push nos seguintes momentos:
 
 - **Água**: a cada X horas se a pessoa não registrou consumo (configurável por usuário)
-- **Peso**: quando passar X dias desde o último registro (configurável)  
+- **Peso**: quando passar X dias desde o último registro (configurável)
 - **Resumo diário**: todo dia às 21h com o resumo das atividades
-
-Configure o endpoint e a chave da Evolution API nas variáveis de ambiente.
 
 ## Instalação como app (PWA)
 

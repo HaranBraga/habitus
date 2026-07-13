@@ -93,7 +93,7 @@ export function SelectUser({ onSelect }: Props) {
                 )}
                 {[
                   { key: 'name', label: 'Nome', type: 'text', placeholder: 'Seu nome' },
-                  { key: 'phone', label: 'WhatsApp', type: 'tel', placeholder: '11 99999-9999' },
+                  { key: 'phone', label: 'Telefone', type: 'tel', placeholder: '11 99999-9999' },
                   { key: 'age', label: 'Idade (anos)', type: 'number', placeholder: '28' },
                   { key: 'height', label: 'Altura (cm)', type: 'number', placeholder: '170' },
                 ].map(({ key, label, type, placeholder }) => (
