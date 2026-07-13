@@ -87,18 +87,22 @@ export const getWeightGoal = (userId: string) =>
   api.get<{ min: number; ideal: number; max: number }>(`/weight/${userId}/goal`).then(r => r.data)
 export const getWeightStatus = (userId: string) =>
   api.get<WeightStatus>(`/weight/${userId}/status`).then(r => r.data)
+export const deleteWeightLog = (logId: string) => api.delete(`/weight/${logId}`)
 
 // Activity
 export const logActivity = (userId: string, d: { durationMinutes: number; description?: string; loggedAt?: string }) =>
   api.post(`/activity/${userId}`, d).then(r => r.data)
+export const deleteActivityLog = (logId: string) => api.delete(`/activity/${logId}`)
 
 // Reading
 export const logReading = (userId: string, durationMinutes: number, loggedAt?: string) =>
   api.post(`/reading/${userId}`, { durationMinutes, loggedAt }).then(r => r.data)
+export const deleteReadingLog = (logId: string) => api.delete(`/reading/${logId}`)
 
 // English
 export const logEnglish = (userId: string, durationMinutes: number, loggedAt?: string) =>
   api.post(`/english/${userId}`, { durationMinutes, loggedAt }).then(r => r.data)
+export const deleteEnglishLog = (logId: string) => api.delete(`/english/${logId}`)
 
 // Settings
 export const updateSettings = (userId: string, d: Partial<UserSettings>) =>
@@ -115,6 +119,7 @@ export const completeGroupTask = (taskId: string, userId: string) =>
   api.post(`/grouptasks/${taskId}/complete`, { userId }).then(r => r.data)
 export const deleteGroupTask = (taskId: string, adminId: string) =>
   api.delete(`/grouptasks/${taskId}?adminId=${adminId}`)
+export const deleteGroupTaskLog = (logId: string) => api.delete(`/grouptasks/log/${logId}`)
 
 // Ranking
 export const getRankingDaily = () => api.get<RankingUser[]>('/ranking/daily').then(r => r.data)
@@ -142,6 +147,16 @@ export type TimelineData = {
 }
 export const getTimeline = (userId: string, date?: string) =>
   api.get<TimelineData>(`/timeline/${userId}`, { params: date ? { date } : undefined }).then(r => r.data)
+export const deleteTimelineEntry = (entry: TimelineEntry) => {
+  switch (entry.type) {
+    case 'water': return deleteWaterLog(entry.id)
+    case 'activity': return deleteActivityLog(entry.id)
+    case 'reading': return deleteReadingLog(entry.id)
+    case 'english': return deleteEnglishLog(entry.id)
+    case 'weight': return deleteWeightLog(entry.id)
+    case 'groupTask': return deleteGroupTaskLog(entry.id)
+  }
+}
 
 // Analysis
 export type AnalysisSection = { title: string; body: string }

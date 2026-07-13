@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { getTimeline, getUsers } from '../lib/api'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getTimeline, getUsers, deleteTimelineEntry, TimelineEntry } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
 import { TimelineEntryList } from '../components/TimelineEntryList'
+import { TimelineQuickAdd } from '../components/TimelineQuickAdd'
 import { TIMELINE_TYPE_META } from '../lib/timelineDisplay'
 import { todayAcre } from '../lib/date'
 import { History, ChevronLeft, ChevronRight, CalendarDays, Loader2 } from 'lucide-react'
@@ -16,14 +17,31 @@ function shiftDate(dateStr: string, days: number): string {
 }
 
 export function TimelinePage({ userId }: Props) {
+  const qc = useQueryClient()
   const [selectedUserId, setSelectedUserId] = useState(userId)
   const [date, setDate] = useState(todayAcre())
+  const [deletingKey, setDeletingKey] = useState<string | null>(null)
   const today = todayAcre()
+  const isOwnTimeline = selectedUserId === userId
 
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: getUsers })
   const { data, isLoading } = useQuery({
     queryKey: ['timeline', selectedUserId, date],
     queryFn: () => getTimeline(selectedUserId, date),
+  })
+
+  function refreshAfterEdit() {
+    qc.invalidateQueries({ queryKey: ['timeline', selectedUserId, date] })
+    qc.invalidateQueries({ queryKey: ['dashboard', selectedUserId] })
+    qc.invalidateQueries({ queryKey: ['weight-history', selectedUserId] })
+    qc.invalidateQueries({ queryKey: ['ranking'] })
+  }
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteTimelineEntry,
+    onMutate: (entry: TimelineEntry) => setDeletingKey(`${entry.type}-${entry.id}`),
+    onSettled: () => setDeletingKey(null),
+    onSuccess: refreshAfterEdit,
   })
 
   const dateLabel = new Date(`${date}T12:00:00-05:00`).toLocaleDateString('pt-BR', {
@@ -94,6 +112,10 @@ export function TimelinePage({ userId }: Props) {
         </div>
       )}
 
+      {isOwnTimeline && (
+        <TimelineQuickAdd userId={selectedUserId} date={date} onAdded={refreshAfterEdit} />
+      )}
+
       {isLoading || !data ? (
         <div className="flex justify-center pt-10"><Loader2 className="animate-spin text-primary" size={24} /></div>
       ) : data.entries.length === 0 ? (
@@ -102,7 +124,9 @@ export function TimelinePage({ userId }: Props) {
           <p className="text-sm text-gray-600">Nada registrado neste dia</p>
         </div>
       ) : (
-        <TimelineEntryList entries={data.entries} />
+        <TimelineEntryList entries={data.entries}
+          onDelete={isOwnTimeline ? (entry => deleteMutation.mutate(entry)) : undefined}
+          deletingKey={deletingKey} />
       )}
     </div>
   )

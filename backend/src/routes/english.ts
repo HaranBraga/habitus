@@ -42,4 +42,10 @@ export async function englishRoutes(app: FastifyInstance) {
     })
     return logs
   })
+
+  app.delete('/:logId', async (req, reply) => {
+    const { logId } = req.params as { logId: string }
+    await prisma.englishLog.delete({ where: { id: logId } })
+    return reply.status(204).send()
+  })
 }

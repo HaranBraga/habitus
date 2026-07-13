@@ -168,4 +168,10 @@ export async function weightRoutes(app: FastifyInstance) {
       personalGoalKg: settings?.weightGoalKg ?? null,
     }
   })
+
+  app.delete('/:logId', async (req, reply) => {
+    const { logId } = req.params as { logId: string }
+    await prisma.weightLog.delete({ where: { id: logId } })
+    return reply.status(204).send()
+  })
 }
