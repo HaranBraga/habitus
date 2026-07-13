@@ -4,10 +4,13 @@ services:
   backend:
     build: ./backend
     restart: unless-stopped
+    mem_limit: 200m
     environment:
       DATABASE_URL: ${DATABASE_URL}
       PORT: 3001
       TZ: America/Rio_Branco
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=128
       FRONTEND_URL: ${FRONTEND_URL:-*}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
     ports:

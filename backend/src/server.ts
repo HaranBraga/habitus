@@ -21,7 +21,9 @@ import { initWebPush } from './services/webpush'
 
 export const prisma = new PrismaClient()
 
-const app = Fastify({ logger: true })
+const app = Fastify({
+  logger: process.env.NODE_ENV === 'production' ? { level: 'warn' } : true,
+})
 
 async function main() {
   await app.register(cors, {
